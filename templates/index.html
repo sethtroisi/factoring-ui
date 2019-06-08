@@ -6,9 +6,18 @@
   background-color: #dee2e6
 }
 
+#results-tabs .tab-content {
+  padding : 10px 0px;
+}
+
+#results-tabs .nav-pills > li > a {
+  border-radius: 0;
+}
+
 </style>
 
-{# <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.js"></script> #}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.js"></script>
 {% set base="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0" %}
 <link rel="stylesheet" href="{{base}}/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 <script src="{{base}}/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
@@ -22,36 +31,57 @@
     <div class="text-center">
       <h1 class="text-center">Factoring Progress for 2,2330L</h1>
       <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
+      <h3>{{ eta }}</h3>
+      <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
     </div>
     <br>
 
-    <h2>{{ eta }}</h2>
-    <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
-    <table id="results" class="table table-sm table-hover">
-      <thead class="thead-dark">
-        <tr>
-          <th scope="col">host</th>
-          <th scope="col"># of workunits</th>
-          <th scope="col">Relations</th>
-          <th scope="col">CPU-days</th>
-          <th scope="col">last workunit</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for host, host_stat in host_stats %}
-        <tr>
-          <th scope="row">{{ host }}</th>
-          <td>{{ host_stat[0] }}</td>
-          {% if loop.first %}
-            <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
-          {% else %}
-            <td>{{ host_stat[1] }} ({{ (100 * host_stat[1] / relations_done) |round(1) }}% total)</td>
-          {% endif %}
-          <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
-          <td>{{ host_stat[3] }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div id="results-tabs">
+      <ul class="nav nav-tabs">
+        <li class="nav-item"><a href="#clients" class="nav-link active" data-toggle="tab">Client Stats</a></li>
+        <li class="nav-item"><a href="#log"     class="nav-link" data-toggle="tab">Logs</a></li>
+        <li class="nav-item"><a href="#charts"  class="nav-link" data-toggle="tab">Charts (TBD)</a></li>
+      </ul>
+
+      <div class="tab-content clearfix">
+        <div class="tab-pane active" id="clients">
+          <table id="results" class="table table-sm table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">host</th>
+                <th scope="col"># of workunits</th>
+                <th scope="col">Relations</th>
+                <th scope="col">CPU-days</th>
+                <th scope="col">last workunit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for host, host_stat in host_stats %}
+              <tr>
+                <th scope="row">{{ host }}</th>
+                <td>{{ host_stat[0] }}</td>
+                {% if loop.first %}
+                  <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
+                {% else %}
+                  <td>{{ host_stat[1] }} ({{ (100 * host_stat[1] / relations_done) |round(1) }}% total)</td>
+                {% endif %}
+                <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
+                <td>{{ host_stat[3] }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="tab-pane" id="log">
+          <h3>Server ETA logs</h3>
+          {% for log in random_shuf %}
+            <div>{{ log }}</div>
+          {% endfor %}
+        </div>
+        <div class="tab-pane" id="charts">
+          <h3>Charts will go here one day</h3>
+        </div>
+      </div>
+    </div>
   </div>
 </body>

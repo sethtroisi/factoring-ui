@@ -59,6 +59,12 @@ def Index():
     total_line = ("total", (found, relations_done, all_cpus, newest_wu))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
 
+    def minimize_line(line):
+        line = line.split(" ", 1)[1]
+        line = line.replace("Info:", "")
+        return line
+
+    random_shuf = list(map(minimize_line, random_shuf))
 
     return render_template(
         "index.html",

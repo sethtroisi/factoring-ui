@@ -116,7 +116,7 @@ print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
 print ()
 
 
-random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 1000))] + eta_lines[-1:]
+random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
 with open(STATUS_FILE, "w") as f:
     json.dump([host_stats, random_shuf], f)
 
