@@ -2,9 +2,8 @@
 <meta charset="utf-8">
 <head>
 <style>
-.seperator {
-  font-weight: bold;
-  margin: 16px 0 8px;
+#results tbody tr:first-child {
+  background-color: #dee2e6
 }
 
 </style>
@@ -17,13 +16,18 @@
 </head>
 
 <body>
-  <h1>Welcome to CloudyGo's Factoring Page!</h1>
+  <div id='status'>This is iteration 2, more styling tomorrow.</div>
 
   <div class="container">
+    <div class="text-center">
+      <h1 class="text-center">Factoring Progress for 2,2330L</h1>
+      <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
+    </div>
+    <br>
+
     <h2>{{ eta }}</h2>
-    <div id='status'>This is day 0, iteration 1, more styling tomorrow.</div>
-    <div>Last updated: {{ last_update }} ({{ hours_ago|int }} hours ago)</div>
-    <table class="table table-sm">
+    <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
+    <table id="results" class="table table-sm table-hover">
       <thead class="thead-dark">
         <tr>
           <th scope="col">host</th>
