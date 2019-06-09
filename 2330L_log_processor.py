@@ -14,10 +14,12 @@ PID22558 2019-06-02 14:44:23,920 Info:Lattice Sieving: Found 9979 relations in '
 
 '''
 
+import datetime
 import json
 import random
 import re
 import sqlite3
+import time
 
 from collections import Counter, defaultdict
 
@@ -29,7 +31,7 @@ SQL_FILE = "2330L.c207.db"
 LOG_FILE = "2330L.c207.log"
 
 STATUS_FILE = "2330L.c207.status"
-
+GRAPH_FILE  = "2330L.c207.progress.png"
 
 with sqlite3.connect(SQL_FILE) as db:
     # About 40 workunits have status = 7????
@@ -69,6 +71,7 @@ print(len(lines), "log lines")
 
 # wu, relations, cpu_s
 host_stats = defaultdict(lambda: [0, 0, 0.0, ""])
+max_relations = 0
 
 for i, line in enumerate(lines):
     match = RELATIONS_PTN.search(line)
@@ -76,7 +79,7 @@ for i, line in enumerate(lines):
         wu = match.group(2)
         relations = int(match.group(1))
         #print (wu, relations, "\t", lines[i-2])
-        assert 1000 <= relations <= 28000, relations
+        max_relations = max(relations, max_relations)
 
         total_cpu_seconds = 0
         if "Newly arrived stats" in lines[i-2]:
@@ -115,8 +118,30 @@ eta_lines = [line for line in lines if '=> ETA' in line]
 print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
 print ()
 
-
 random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
 with open(STATUS_FILE, "w") as f:
-    json.dump([host_stats, random_shuf], f)
+    json.dump([host_stats, [max_relations, time.time()], random_shuf], f)
 
+
+#--------------------------------------------------------------------------------------------------
+
+from matplotlib.dates import DateFormatter
+import matplotlib.ticker as ticker
+import matplotlib.pyplot as plt
+
+import seaborn as sns
+sns.set()
+
+log_raw_dates = [" ".join(line.split()[1:3]) for line in random_shuf]
+log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in random_shuf]
+log_dates = [datetime.datetime.strptime(line, "%Y-%m-%d %H:%M:%S,%f") for line in log_raw_dates]
+
+plt.plot(log_dates, log_percents)
+
+ax  = plt.gca()
+ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
+ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
+
+ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
+
+plt.savefig(GRAPH_FILE)

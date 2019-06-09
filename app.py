@@ -7,7 +7,7 @@ import re
 import time
 
 from flask import Flask
-from flask import render_template
+from flask import render_template, send_from_directory
 from werkzeug.contrib.cache import SimpleCache
 
 
@@ -22,10 +22,8 @@ def GetData(factor):
     if factor_data is None:
         # TODO handle file not existing
         status_path = os.path.join(app.root_path, factor)
-        mtime = os.path.getmtime(status_path)
-
         with open(status_path) as f:
-            factor_data = json.load(f) + [mtime]
+            factor_data = json.load(f)
         cache.set(factor, factor_data, timeout=5 * 60)
 
     return factor_data
@@ -33,9 +31,10 @@ def GetData(factor):
 
 @app.route("/")
 def Index():
-    factor = "2330L.c207"
-    data = GetData(factor + ".status")
-    host_stats, random_shuf, mtime = data
+    number = "2330L.c207"
+    data = GetData(number + ".status")
+    host_stats, other_stats, random_shuf = data
+    max_relations, mtime = other_stats
 
     RELATION_GOAL = 2.7e9
 
@@ -48,7 +47,7 @@ def Index():
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
 
-    host_hide = ["buster", "eifz", "lukerichards", "C5KKONV", "lrichards"]
+    host_hide = ["eifz", "lukerichards", "C5KKONV", "lrichards"]
     for k in list(host_stats.keys()):
         temp = k
         for hide in host_hide:
@@ -68,8 +67,10 @@ def Index():
 
     return render_template(
         "index.html",
+        number=number,
         found=found,
         relations_done=relations_done,
+        max_relations=max_relations,
         host_stats=host_stats,
         random_shuf=random_shuf,
 
@@ -79,9 +80,16 @@ def Index():
     )
 
 
-@app.route("/favicon.ico/")
+@app.route("/favicon.ico")
 def Favicon():
     return ""
+
+
+@app.route('/progress/<name>')
+def factor_progress(name):
+    return send_from_directory(
+        "", name + ".progress.png",
+        cache_timeout=120)
 
 
 if __name__ == "__main__":

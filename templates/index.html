@@ -25,7 +25,7 @@
 </head>
 
 <body>
-  <div id='status'>This is iteration 2, more styling tomorrow.</div>
+  <div id='status'>This is iteration 3, more styling tomorrow.</div>
 
   <div class="container">
     <div class="text-center">
@@ -40,7 +40,7 @@
       <ul class="nav nav-tabs">
         <li class="nav-item"><a href="#clients" class="nav-link active" data-toggle="tab">Client Stats</a></li>
         <li class="nav-item"><a href="#log"     class="nav-link" data-toggle="tab">Logs</a></li>
-        <li class="nav-item"><a href="#charts"  class="nav-link" data-toggle="tab">Charts (TBD)</a></li>
+        <li class="nav-item"><a href="#charts"  class="nav-link" data-toggle="tab">Charts</a></li>
       </ul>
 
       <div class="tab-content clearfix">
@@ -52,7 +52,7 @@
                 <th scope="col"># of workunits</th>
                 <th scope="col">Relations</th>
                 <th scope="col">CPU-days</th>
-                <th scope="col">last workunit</th>
+                <th scope="col">Last workunit submitted</th>
               </tr>
             </thead>
             <tbody>
@@ -71,15 +71,21 @@
               {% endfor %}
             </tbody>
           </table>
+          <div>
+            Most relations found in any workunit: {{max_relations}}
+          </div>
         </div>
+
         <div class="tab-pane" id="log">
           <h3>Server ETA logs</h3>
           {% for log in random_shuf %}
             <div>{{ log }}</div>
           {% endfor %}
         </div>
+
         <div class="tab-pane" id="charts">
-          <h3>Charts will go here one day</h3>
+          <h3>Progress</h3>
+          <img src='{{ url_for("factor_progress", name=number) }}' />
         </div>
       </div>
     </div>
