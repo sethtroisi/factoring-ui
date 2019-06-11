@@ -33,7 +33,7 @@ def GetData(factor):
 def Index():
     number = "2330L.c207"
     data = GetData(number + ".status")
-    host_stats, other_stats, random_shuf = data
+    host_stats, host_records, other_stats, random_shuf = data
     max_relations, mtime = other_stats
 
     RELATION_GOAL = 2.7e9
@@ -65,6 +65,17 @@ def Index():
 
     random_shuf = list(map(minimize_line, random_shuf))
 
+    host_badges = {host: records[0] for host, records in host_records.items()}
+    badges = set(badge[0] for badges in host_badges.values() for badge in badges)
+    badge_names = {
+        "unlucky": "badge-danger",
+        "lucky":   "badge-success",
+        "CPU-years": "badge-secondary",
+        "weeks":   "badge-dark",
+    }
+    if badges > badge_names.keys():
+        print ("No badge type for:", badges - badge_names.keys())
+
     return render_template(
         "index.html",
         number=number,
@@ -72,6 +83,9 @@ def Index():
         relations_done=relations_done,
         max_relations=max_relations,
         host_stats=host_stats,
+        host_badges=host_badges,
+        badge_names=badge_names,
+
         random_shuf=random_shuf,
 
         last_update=last_update,
@@ -87,7 +101,6 @@ def Favicon():
 
 @app.route('/progress/<name>')
 def factor_progress(name):
-    print ("Hi", name + ".progress.png", os.path.getmtime(app.root_path + "/" + name + ".progress.png"))
     return send_from_directory(
         app.root_path, name + ".progress.png",
         cache_timeout=120)

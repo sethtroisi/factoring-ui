@@ -22,6 +22,9 @@ import sqlite3
 import time
 
 from collections import Counter, defaultdict
+from operator import itemgetter
+
+import numpy as np
 
 RELATIONS_GOAL = 2.7e9
 
@@ -33,17 +36,25 @@ LOG_FILE = "2330L.c207.log"
 STATUS_FILE = "2330L.c207.status"
 GRAPH_FILE  = "2330L.c207.progress.png"
 
-with sqlite3.connect(SQL_FILE) as db:
-    # About 40 workunits have status = 7????
-    cur = db.execute("select wuid, resultclient from workunits")
-    wuid = dict(cur.fetchall())
-wuid = {key.replace("_sieving_", "."): value for key, value in wuid.items()}
+
+def parse_log_time(log_time):
+    return datetime.datetime.strptime(log_time, "%Y-%m-%d %H:%M:%S,%f")
+
 
 def host_name(client):
     if not client:
         return" <EMPTY>"
     client = re.sub('vebis[0-9]+', 'vebis<X>', client)
     return client.split(".")[0]
+
+##### MAIN #####
+
+with sqlite3.connect(SQL_FILE) as db:
+    # About 40 workunits have status = 7????
+    cur = db.execute("select wuid, resultclient from workunits")
+    wuid = dict(cur.fetchall())
+wuid = {key.replace("_sieving_", "."): value for key, value in wuid.items()}
+
 
 print()
 print ("{} workloads, {} to {}".format(
@@ -69,17 +80,13 @@ with open(LOG_FILE) as f:
 print()
 print(len(lines), "log lines")
 
-# wu, relations, cpu_s
-host_stats = defaultdict(lambda: [0, 0, 0.0, ""])
-max_relations = 0
-
+stat_lines = []
 for i, line in enumerate(lines):
     match = RELATIONS_PTN.search(line)
     if match:
         wu = match.group(2)
         relations = int(match.group(1))
         #print (wu, relations, "\t", lines[i-2])
-        max_relations = max(relations, max_relations)
 
         total_cpu_seconds = 0
         if "Newly arrived stats" in lines[i-2]:
@@ -88,28 +95,100 @@ for i, line in enumerate(lines):
                 total_cpu_seconds = float(cpu_seconds_match.group(1))
             else:
                 print ("Didn't find stats:", lines[i-2:i])
+        else:
+            print ("Didn't find Newly arrived stats?")
+        log_time = " ".join(line.split(" ")[1:3])
 
-        host = host_name(wuid[wu])
-        host_stat = host_stats[host]
-        host_stat[0] += 1
-        host_stat[1] += relations
-        host_stat[2] += total_cpu_seconds
-        host_stat[3] = " ".join(line.split(" ")[1:3])
+        stat_lines.append((log_time, wu, relations, total_cpu_seconds))
+print ()
 
-found = sum(s[0] for s in host_stats.values())
-relations_done = sum(s[1] for s in host_stats.values())
+##### Varibles for badges #####
+
+
+# wu, relations, cpu_s, last
+host_stats = defaultdict(lambda: [0, 0, 0.0, None])
+
+# badges
+# first, last
+# min_relations, max_relations
+# min_cpu_seconds, max_cpu_seconds
+host_records = defaultdict(lambda: [[], None, None, (10**6, ""), (0, ""), 10**6, 0])
+
+for log_time, wu, relations, total_cpu_seconds in stat_lines:
+    host = host_name(wuid[wu])
+
+    host_stat = host_stats[host]
+    host_stat[0] += 1
+    host_stat[1] += relations
+    host_stat[2] += total_cpu_seconds
+    host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
+
+    host_record = host_records[host]
+    host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
+    host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
+
+    host_record[3] = min(host_record[3], (relations, wu))
+    host_record[4] = max(host_record[4], (relations, wu))
+
+    host_record[5] = min(host_record[5], total_cpu_seconds)
+    host_record[6] = max(host_record[6], total_cpu_seconds)
+
+wu_relations = sorted(map(itemgetter(2), stat_lines))
+max_relations = wu_relations[-1]
+unlucky_relations = np.percentile(wu_relations, 1)
+lucky_relations = np.percentile(wu_relations, 99)
+
+print (unlucky_relations, lucky_relations, "[un]lucky relations")
+
+for host, host_record in host_records.items():
+    if host_record[3][0] <= unlucky_relations:
+        host_record[0].append((
+            "unlucky",
+            host_record[3][0],
+            host_record[3][1],
+        ))
+
+    if host_record[4][0] >= lucky_relations:
+        host_record[0].append((
+            "lucky",
+            host_record[4][0],
+            host_record[4][1],
+        ))
+
+    time_delta = parse_log_time(host_record[2]) - parse_log_time(host_record[1])
+    if time_delta.days > 7:
+        weeks = time_delta.total_seconds() / (7 * 24 * 3600)
+        host_record[0].append((
+            "weeks",
+            int(time_delta.days) // 7,
+            "{:.2f} Weeks of workunits".format(weeks),
+        ))
+
+    total_cpu_seconds = host_stats[host][2]
+    cpu_year = total_cpu_seconds / (365 * 24 * 3600)
+    if cpu_year >= 2:
+        host_record[0].append((
+            "CPU-years",
+            int(cpu_year),
+            "{:.2f} CPU years!".format(cpu_year),
+        ))
+
+##### Output #####
+
+found          = sum(map(itemgetter(0), host_stats.values()))
+relations_done = sum(map(itemgetter(0), host_stats.values()))
 print ("Found {} workunits, {} relations ~{:.2f}%".format(
     found, relations_done, 100 * relations_done / RELATIONS_GOAL))
 print ()
 
-
-#for host, wus in client_work.most_common():
-#    stat_wu, stat_r, stat_cpus, stat_last = host_stats[host]
 for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
     stat_wu, stat_r, stat_cpus, stat_last = host_stats[host]
+    host_record = host_records[host]
     wus = client_work[host]
     print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
         host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
+    print ("\t\t", ", ".join(map(str, host_record[0])))
+    print ("\t\t", ", ".join(map(str, host_record[1:])))
 print ()
 
 assert host_stats.keys() == client_work.keys(), host_stats.keys()
@@ -120,7 +199,7 @@ print ()
 
 random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
 with open(STATUS_FILE, "w") as f:
-    json.dump([host_stats, [max_relations, time.time()], random_shuf], f)
+    json.dump([host_stats, host_records, [max_relations, time.time()], random_shuf], f)
 
 
 #--------------------------------------------------------------------------------------------------
@@ -136,7 +215,7 @@ sns.set()
 
 log_raw_dates = [" ".join(line.split()[1:3]) for line in random_shuf]
 log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in random_shuf]
-log_dates = [datetime.datetime.strptime(line, "%Y-%m-%d %H:%M:%S,%f") for line in log_raw_dates]
+log_dates = [parse_log_time(log_time) for log_time in log_raw_dates]
 
 plt.plot(log_dates, log_percents)
 

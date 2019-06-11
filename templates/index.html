@@ -58,7 +58,21 @@
             <tbody>
               {% for host, host_stat in host_stats %}
               <tr>
-                <th scope="row">{{ host }}</th>
+                <th scope="row">
+                  {{ host }}
+                  {% if host in host_badges %}
+                    <span class="badge-row">
+                      {% for b, num, desc in host_badges[host] -%}
+                        <span class="badge {{ badge_names[b] }}" data-toggle="tooltip" title="{{desc}}">
+                          {{b}}
+                          {%- if num -%}
+                            <span class="badge badge-light">&nbsp;{{num}}</span>
+                          {%- endif -%}
+                        </span>
+                      {%- endfor %}
+                    <span>
+                  {% endif %}
+                </th>
                 <td>{{ host_stat[0] }}</td>
                 {% if loop.first %}
                   <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
