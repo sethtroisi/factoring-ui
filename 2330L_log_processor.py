@@ -126,6 +126,8 @@ with open(STATUS_FILE, "w") as f:
 #--------------------------------------------------------------------------------------------------
 
 from matplotlib.dates import DateFormatter
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 
@@ -145,3 +147,4 @@ ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
 ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
 plt.savefig(GRAPH_FILE)
+print("Saved as ", GRAPH_FILE)

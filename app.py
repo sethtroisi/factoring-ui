@@ -47,7 +47,7 @@ def Index():
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
 
-    host_hide = ["eifz", "lukerichards", "C5KKONV", "lrichards"]
+    host_hide = ["eifz", "C5KKONV"]
     for k in list(host_stats.keys()):
         temp = k
         for hide in host_hide:
@@ -87,8 +87,9 @@ def Favicon():
 
 @app.route('/progress/<name>')
 def factor_progress(name):
+    print ("Hi", name + ".progress.png", os.path.getmtime(app.root_path + "/" + name + ".progress.png"))
     return send_from_directory(
-        "", name + ".progress.png",
+        app.root_path, name + ".progress.png",
         cache_timeout=120)
 
 
