@@ -30,11 +30,13 @@ RELATIONS_GOAL = 2.7e9
 
 RELATIONS_PTN = re.compile("Found ([0-9]*) relations in.*(2330L\.c207\.[0-9]*-[0-9]*)")
 
-SQL_FILE = "2330L.c207.db"
-LOG_FILE = "2330L.c207.log"
+NUMBER_NAME = "2330L.c207"
 
-STATUS_FILE = "2330L.c207.status"
-GRAPH_FILE  = "2330L.c207.progress.png"
+SQL_FILE = NUMBER_NAME + ".db"
+LOG_FILE = NUMBER_NAME + ".log"
+
+STATUS_FILE = NUMBER_NAME + ".status"
+GRAPH_FILE  = NUMBER_NAME + ".progress.png"
 
 
 def parse_log_time(log_time):
