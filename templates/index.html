@@ -52,6 +52,7 @@
                 <th scope="col"># of workunits</th>
                 <th scope="col">Relations</th>
                 <th scope="col">CPU-days</th>
+                <th scope="col">Rel(s)/CPU-sec</th>
                 <th scope="col">Last workunit submitted</th>
               </tr>
             </thead>
@@ -80,6 +81,7 @@
                   <td>{{ host_stat[1] }} ({{ (100 * host_stat[1] / relations_done) |round(1) }}% total)</td>
                 {% endif %}
                 <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
+                <td>{{ (host_stat[1] / host_stat[2])|round(3) }}</td>
                 <td>{{ host_stat[3] }}</td>
               </tr>
               {% endfor %}
