@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import datetime
+from datetime import datetime
 import json
 import os
 import re
@@ -38,9 +38,15 @@ def Index():
 
     RELATION_GOAL = 2.7e9
 
+
     newest_eta = random_shuf[-1].split("as ok")[-1].strip(' ()\n')
-    last_update = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+    last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     updated_delta_s = time.time() - mtime
+    last_wu = max(host_stat[3] for host_stat in host_stats.values())
+    last_wu_time = datetime.timestamp(datetime.strptime(last_wu, "%Y-%m-%d %H:%M:%S,%f"))
+    wu_delta_s = time.time() - last_wu_time
+
+
 
     found = sum(s[0] for s in host_stats.values())
     relations_done = sum(s[1] for s in host_stats.values())
@@ -88,9 +94,13 @@ def Index():
 
         random_shuf=random_shuf,
 
+        eta=newest_eta,
         last_update=last_update,
         updated_delta_s=updated_delta_s,
-        eta=newest_eta,
+        last_wu=last_wu,
+        wu_delta_s=wu_delta_s,
+
+
     )
 
 

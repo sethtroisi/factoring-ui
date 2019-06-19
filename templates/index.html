@@ -25,13 +25,14 @@
 </head>
 
 <body>
-  <div id='status'>This is iteration 4, more styling tomorrow.</div>
+  <div id='status'>This is iteration 5, Let me know if the thread if you want anything</div>
 
   <div class="container">
     <div class="text-center">
       <h1 class="text-center">Factoring Progress for 2,2330L</h1>
       <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
       <h3>{{ eta }}</h3>
+      <div>Work Unit Recieved: {{ last_wu }} ({{ (wu_delta_s/60)|int }} minutes ago)</div>
       <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
     </div>
     <br>
