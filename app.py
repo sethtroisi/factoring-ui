@@ -33,7 +33,7 @@ def GetData(factor):
 def Index():
     number = "2330L.c207"
     data = GetData(number + ".status")
-    host_stats, host_records, other_stats, random_shuf = data
+    host_stats, client_stats, host_records, other_stats, random_shuf = data
     max_relations, mtime = other_stats
 
     RELATION_GOAL = 2.7e9
@@ -46,23 +46,14 @@ def Index():
     last_wu_time = datetime.timestamp(datetime.strptime(last_wu, "%Y-%m-%d %H:%M:%S,%f"))
     wu_delta_s = time.time() - last_wu_time
 
-
-
     found = sum(s[0] for s in host_stats.values())
     relations_done = sum(s[1] for s in host_stats.values())
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
 
-    host_hide = ["eifz", "C5KKONV"]
-    for k in list(host_stats.keys()):
-        temp = k
-        for hide in host_hide:
-            temp = temp.replace(hide, '*' * len(hide))
-        if temp != k:
-            host_stats[temp] = host_stats.pop(k)
-
     total_line = ("total", (found, relations_done, all_cpus, newest_wu))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
+    client_stats = sorted(client_stats.items())
 
     def minimize_line(line):
         line = line.split(" ", 1)[1]
@@ -91,6 +82,8 @@ def Index():
         host_stats=host_stats,
         host_badges=host_badges,
         badge_names=badge_names,
+
+        client_stats=client_stats,
 
         random_shuf=random_shuf,
 

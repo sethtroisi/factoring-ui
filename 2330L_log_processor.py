@@ -46,7 +46,8 @@ def parse_log_time(log_time):
 def host_name(client):
     if not client:
         return" <EMPTY>"
-    client = re.sub('vebis[0-9]+', 'vebis<X>', client)
+    client = re.sub('vebis.*', 'vebis<X>', client)
+    client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
     return client.split(".")[0]
 
 ##### MAIN #####
@@ -104,10 +105,10 @@ for i, line in enumerate(lines):
         stat_lines.append((log_time, wu, relations, total_cpu_seconds))
 print ()
 
+
 ##### Varibles for badges #####
 
-
-# wu, relations, cpu_s, last
+# wu, relations, cpu_s, last, is
 host_stats = defaultdict(lambda: [0, 0, 0.0, None])
 
 # badges
@@ -117,23 +118,27 @@ host_stats = defaultdict(lambda: [0, 0, 0.0, None])
 host_records = defaultdict(lambda: [[], None, None, (10**6, ""), (0, ""), 10**6, 0])
 
 for log_time, wu, relations, total_cpu_seconds in stat_lines:
-    host = host_name(wuid[wu])
+    host_name_full = wuid[wu]
+    host_name_short = host_name(wuid[wu])
 
-    host_stat = host_stats[host]
-    host_stat[0] += 1
-    host_stat[1] += relations
-    host_stat[2] += total_cpu_seconds
-    host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
+    # Short stats under both short and full name
+    for host in set([host_name_full, host_name_short]):
+        host_stat = host_stats[host]
+        host_stat[0] += 1
+        host_stat[1] += relations
+        host_stat[2] += total_cpu_seconds
+        host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
 
-    host_record = host_records[host]
-    host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
-    host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
+        host_record = host_records[host]
+        host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
+        host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
 
-    host_record[3] = min(host_record[3], (relations, wu))
-    host_record[4] = max(host_record[4], (relations, wu))
+        host_record[3] = min(host_record[3], (relations, wu))
+        host_record[4] = max(host_record[4], (relations, wu))
 
-    host_record[5] = min(host_record[5], total_cpu_seconds)
-    host_record[6] = max(host_record[6], total_cpu_seconds)
+        host_record[5] = min(host_record[5], total_cpu_seconds)
+        host_record[6] = max(host_record[6], total_cpu_seconds)
+
 
 wu_relations = sorted(map(itemgetter(2), stat_lines))
 max_relations = wu_relations[-1]
@@ -177,6 +182,10 @@ for host, host_record in host_records.items():
 
 ##### Output #####
 
+client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
+for h in client_stats:
+    host_stats.pop(h)
+
 found          = sum(map(itemgetter(0), host_stats.values()))
 relations_done = sum(map(itemgetter(0), host_stats.values()))
 print ("Found {} workunits, {} relations ~{:.2f}%".format(
@@ -201,7 +210,7 @@ print ()
 
 random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
 with open(STATUS_FILE, "w") as f:
-    json.dump([host_stats, host_records, [max_relations, time.time()], random_shuf], f)
+    json.dump([host_stats, client_stats, host_records, [max_relations, time.time()], random_shuf], f)
 
 
 #--------------------------------------------------------------------------------------------------
