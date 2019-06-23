@@ -14,6 +14,10 @@
   border-radius: 0;
 }
 
+#main-col {
+  max-width: 80%
+}
+
 </style>
 
 
@@ -33,6 +37,7 @@
       <th scope="col">Relations</th>
       <th scope="col">CPU-days</th>
       <th scope="col">Rel(s)/CPU-sec</th>
+      <th scope="col">Relations last day</th>
       <th scope="col">Last workunit submitted</th>
     </tr>
   </thead>
@@ -62,6 +67,7 @@
       {% endif %}
       <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
       <td>{{ (host_stat[1] / host_stat[2])|round(3) }}</td>
+      <td>{{ host_stat[4] }}</td>
       <td>{{ host_stat[3] }}</td>
     </tr>
     {% endfor %}
@@ -72,7 +78,7 @@
 <body>
   <div id='status'>This is iteration 5, Let me know if the thread if you want anything</div>
 
-  <div class="container">
+  <div id='main-col' class="container">
     <div class="text-center">
       <h1 class="text-center">Factoring Progress for 2,2330L</h1>
       <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>

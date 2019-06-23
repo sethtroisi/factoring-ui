@@ -130,10 +130,12 @@ last_log_date = get_last_log_date(lines)
 print ("Last log date:", last_log_date)
 print ()
 
+one_day_ago = last_log_date - datetime.timedelta(days=1)
+
 ##### Varibles for badges #####
 
-# wu, relations, cpu_s, last, is
-host_stats = defaultdict(lambda: [0, 0, 0.0, None])
+# wu, relations, cpu_s, last_log, rels_last_24
+host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
 
 # badges
 # first, last
@@ -156,6 +158,7 @@ for log_time, wu, relations, total_cpu_seconds in stat_lines:
         host_stat[1] += relations
         host_stat[2] += total_cpu_seconds
         host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
+        host_stat[4] += relations if parse_log_time(log_time) > one_day_ago else 0
 
         host_record = host_records[host]
         host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
@@ -214,7 +217,7 @@ print ("Found {} workunits, {} relations ~{:.2f}%".format(
 print ()
 
 for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
-    stat_wu, stat_r, stat_cpus, stat_last = host_stats[host]
+    stat_wu, stat_r, stat_cpus, stat_last, rels_last_24 = host_stats[host]
     host_record = host_records[host]
     wus = client_work[host]
     print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
