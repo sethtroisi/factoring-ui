@@ -29,6 +29,7 @@ import numpy as np
 RELATIONS_GOAL = 2.7e9
 
 RELATIONS_PTN = re.compile("Found ([0-9]*) relations in.*(2330L\.c207\.[0-9]*-[0-9]*)")
+STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
 NUMBER_NAME = "2330L.c207"
 
@@ -37,6 +38,8 @@ LOG_FILE = NUMBER_NAME + ".log"
 
 STATUS_FILE = NUMBER_NAME + ".status"
 GRAPH_FILE  = NUMBER_NAME + ".progress.png"
+PER_DAY_GRAPH_FILE  = NUMBER_NAME + ".daily_r.png"
+
 
 
 def parse_log_time(log_time):
@@ -48,34 +51,72 @@ def host_name(client):
         return" <EMPTY>"
     client = re.sub('vebis.*', 'vebis<X>', client)
     client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
+    for lsub in ('lrichards-pre2core', 'instance-1', 'localhost'):
+        client = client.replace(lsub, 'lukerichards-<COMP>')
+
     return client.split(".")[0]
+
+
+def get_client_work():
+    with sqlite3.connect(SQL_FILE) as db:
+        # About 40 workunits have status = 7????
+        cur = db.execute("select wuid, resultclient from workunits")
+        wuid = {wuid.replace("_sieving_", "."): value for wuid, value in cur.fetchall()}
+
+    print (f"{len(wuid)} workloads, {min(wuid)} to {max(wuid)}")
+    client_work = Counter(map(host_name, wuid.values()))
+    for host, wus in client_work.most_common():
+        print ("\t{:20} x{} workuints".format(host, wus))
+    print ()
+
+
+    clients = sorted(set(v for v in wuid.values() if v is not None))
+    hosts = Counter(map(host_name, clients))
+    print ("{} clients, {} hosts".format(len(clients), len(hosts)))
+    for host, count in hosts.most_common():
+        print ("\t{:20} x{} clients (over the run)".format(host, count))
+    print ()
+    return wuid, client_work
+
+
+def get_stat_lines(lines):
+    stat_lines = []
+    for i, line in enumerate(lines):
+        match = RELATIONS_PTN.search(line)
+        if match:
+            wu = match.group(2)
+            relations = int(match.group(1))
+            #print (wu, relations, "\t", lines[i-2])
+
+            total_cpu_seconds = 0
+            if "Newly arrived stats" in lines[i-2]:
+                cpu_seconds_match = re.search(STATS_TOTAL_PTN, lines[i-2])
+                if cpu_seconds_match:
+                    total_cpu_seconds = float(cpu_seconds_match.group(1))
+                else:
+                    print ("Didn't find stats:", lines[i-2:i])
+            else:
+                print ("Didn't find Newly arrived stats?")
+            log_time = " ".join(line.split(" ")[1:3])
+
+            stat_lines.append((log_time, wu, relations, total_cpu_seconds))
+    print ()
+    return stat_lines
+
+
+def get_last_log_date(lines):
+    for line in reversed(lines):
+        parts = line.split()
+        if parts[1].startswith('20'):
+            return parse_log_time(parts[1] + " " + parts[2])
+
+    print ("FAILING BACK TO NOW DATE!")
+    return datetime.datetime.uctnow()
+
 
 ##### MAIN #####
 
-with sqlite3.connect(SQL_FILE) as db:
-    # About 40 workunits have status = 7????
-    cur = db.execute("select wuid, resultclient from workunits")
-    wuid = dict(cur.fetchall())
-wuid = {key.replace("_sieving_", "."): value for key, value in wuid.items()}
-
-
-print()
-print ("{} workloads, {} to {}".format(
-    len(wuid),
-    min(wuid.keys()),
-    max(wuid.keys())))
-client_work = Counter(map(host_name, wuid.values()))
-for host, wus in client_work.most_common():
-    print ("\t{:20} x{} workuints".format(host, wus))
-print ()
-
-
-clients = sorted(set(v for v in wuid.values() if v is not None))
-hosts = Counter(map(host_name, clients))
-print ("{} clients, {} hosts".format(len(clients), len(hosts)))
-for host, count in hosts.most_common():
-    print ("\t{:20} x{} clients (over the run)".format(host, count))
-print ()
+wuid, client_work = get_client_work()
 
 with open(LOG_FILE) as f:
     lines = f.readlines()
@@ -83,28 +124,11 @@ with open(LOG_FILE) as f:
 print()
 print(len(lines), "log lines")
 
-stat_lines = []
-for i, line in enumerate(lines):
-    match = RELATIONS_PTN.search(line)
-    if match:
-        wu = match.group(2)
-        relations = int(match.group(1))
-        #print (wu, relations, "\t", lines[i-2])
+stat_lines = get_stat_lines(lines)
 
-        total_cpu_seconds = 0
-        if "Newly arrived stats" in lines[i-2]:
-            cpu_seconds_match = re.search(r"'stats_total_cpu_time': '([0-9.]*)',", lines[i-2])
-            if cpu_seconds_match:
-                total_cpu_seconds = float(cpu_seconds_match.group(1))
-            else:
-                print ("Didn't find stats:", lines[i-2:i])
-        else:
-            print ("Didn't find Newly arrived stats?")
-        log_time = " ".join(line.split(" ")[1:3])
-
-        stat_lines.append((log_time, wu, relations, total_cpu_seconds))
+last_log_date = get_last_log_date(lines)
+print ("Last log date:", last_log_date)
 print ()
-
 
 ##### Varibles for badges #####
 
@@ -118,6 +142,10 @@ host_stats = defaultdict(lambda: [0, 0, 0.0, None])
 host_records = defaultdict(lambda: [[], None, None, (10**6, ""), (0, ""), 10**6, 0])
 
 for log_time, wu, relations, total_cpu_seconds in stat_lines:
+    if not wu in wuid:
+#        print ("wuid not found", wu, len(wuid))
+        continue
+
     host_name_full = wuid[wu]
     host_name_short = host_name(wuid[wu])
 
@@ -142,25 +170,18 @@ for log_time, wu, relations, total_cpu_seconds in stat_lines:
 
 wu_relations = sorted(map(itemgetter(2), stat_lines))
 max_relations = wu_relations[-1]
-unlucky_relations = np.percentile(wu_relations, 1)
-lucky_relations = np.percentile(wu_relations, 99)
+unlucky_relations = np.percentile(wu_relations, 0.1)
+lucky_relations = np.percentile(wu_relations, 99.9)
 
-print (unlucky_relations, lucky_relations, "[un]lucky relations")
+print (f"{unlucky_relations:.1f}, {lucky_relations:.1f} [un]lucky relations")
+print ()
 
 for host, host_record in host_records.items():
     if host_record[3][0] <= unlucky_relations:
-        host_record[0].append((
-            "unlucky",
-            host_record[3][0],
-            host_record[3][1],
-        ))
+        host_record[0].append(("unlucky", host_record[3][0], host_record[3][1]))
 
     if host_record[4][0] >= lucky_relations:
-        host_record[0].append((
-            "lucky",
-            host_record[4][0],
-            host_record[4][1],
-        ))
+        host_record[0].append(("lucky", host_record[4][0], host_record[4][1]))
 
     time_delta = parse_log_time(host_record[2]) - parse_log_time(host_record[1])
     if time_delta.days > 7:
@@ -173,7 +194,7 @@ for host, host_record in host_records.items():
 
     total_cpu_seconds = host_stats[host][2]
     cpu_year = total_cpu_seconds / (365 * 24 * 3600)
-    if cpu_year >= 2:
+    if cpu_year >= 1:
         host_record[0].append((
             "CPU-years",
             int(cpu_year),
@@ -187,7 +208,7 @@ for h in client_stats:
     host_stats.pop(h)
 
 found          = sum(map(itemgetter(0), host_stats.values()))
-relations_done = sum(map(itemgetter(0), host_stats.values()))
+relations_done = sum(map(itemgetter(1), host_stats.values()))
 print ("Found {} workunits, {} relations ~{:.2f}%".format(
     found, relations_done, 100 * relations_done / RELATIONS_GOAL))
 print ()
@@ -204,14 +225,59 @@ print ()
 
 assert host_stats.keys() == client_work.keys(), host_stats.keys()
 
+#-----
+
 eta_lines = [line for line in lines if '=> ETA' in line]
 print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
 print ()
-
 random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
-with open(STATUS_FILE, "w") as f:
-    json.dump([host_stats, client_stats, host_records, [max_relations, time.time()], random_shuf], f)
 
+#-----
+total_found_lines = []
+for line in lines:
+    match = re.search('(20[12][0-9]-[\w-]* [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)', line)
+    if match:
+        datetime_raw, found_raw = match.groups()
+        total_found_lines.append((
+            parse_log_time(datetime_raw), int(found_raw)
+        ))
+
+total_found_lines.append((
+    last_log_date, total_found_lines[-1][1]
+))
+
+total_last_24 = []
+i = 0
+j = 0
+while j < len(total_found_lines):
+    a = total_found_lines[i]
+    b = total_found_lines[j]
+
+    if (b[0] - a[0]).days > 0:
+        i += 1
+        continue
+
+    delta = b[1] - a[1]
+    total_last_24.append((
+        b[0],
+        delta,
+    ))
+
+#    print (i, j, b[0] - a[0])
+    j += 1
+
+# Always include last datepoint
+rels_last_24 = total_last_24[-1]
+total_last_24 = sorted(random.sample(total_last_24, 1000)) + [rels_last_24]
+
+#--------------------------------------------------------------------------------------------------
+
+with open(STATUS_FILE, "w") as f:
+    json.dump([
+        host_stats, client_stats, host_records,
+        [max_relations, time.time()],
+        random_shuf, rels_last_24[1],
+    ], f)
 
 #--------------------------------------------------------------------------------------------------
 
@@ -238,3 +304,17 @@ ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
 plt.savefig(GRAPH_FILE)
 print("Saved as ", GRAPH_FILE)
+#plt.show()
+
+rels_24_dates = [dt for dt, _ in total_last_24]
+rels_24_count = [ct for _, ct in total_last_24]
+
+ax.clear()
+
+plt.plot(rels_24_dates, rels_24_count)
+plt.ylabel("Relations in last 24 hours")
+
+plt.savefig(PER_DAY_GRAPH_FILE)
+print("Saved as ", PER_DAY_GRAPH_FILE)
+
+#plt.show()

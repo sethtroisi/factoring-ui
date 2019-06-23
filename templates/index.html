@@ -77,6 +77,7 @@
       <h1 class="text-center">Factoring Progress for 2,2330L</h1>
       <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
       <h3>{{ eta }}</h3>
+      <h4>Relations last 24hrs: <strong>{{ rels_last_24 }}</strong></h3>
       <div>Work Unit Recieved: {{ last_wu }} ({{ (wu_delta_s/60)|int }} minutes ago)</div>
       <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
     </div>
@@ -112,7 +113,8 @@
 
         <div class="tab-pane" id="charts">
           <h3>Progress</h3>
-          <img src='{{ url_for("factor_progress", name=number) }}' />
+          <img src='{{ url_for("factor_progress", name=number, graph="progress") }}' />
+          <img src='{{ url_for("factor_progress", name=number, graph="daily_r") }}' />
         </div>
       </div>
     </div>

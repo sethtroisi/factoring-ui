@@ -33,7 +33,8 @@ def GetData(factor):
 def Index():
     number = "2330L.c207"
     data = GetData(number + ".status")
-    host_stats, client_stats, host_records, other_stats, random_shuf = data
+    (host_stats, client_stats, host_records,
+     other_stats, random_shuf, rels_last_24) = data
     max_relations, mtime = other_stats
 
     RELATION_GOAL = 2.7e9
@@ -78,6 +79,8 @@ def Index():
         number=number,
         found=found,
         relations_done=relations_done,
+        rels_last_24=rels_last_24,
+
         max_relations=max_relations,
         host_stats=host_stats,
         host_badges=host_badges,
@@ -102,10 +105,11 @@ def Favicon():
     return ""
 
 
-@app.route('/progress/<name>')
-def factor_progress(name):
+@app.route('/progress/<name>/<graph>')
+def factor_progress(name, graph):
+    print (graph)
     return send_from_directory(
-        app.root_path, name + ".progress.png",
+        app.root_path, name + "." + graph + ".png",
         cache_timeout=120)
 
 
