@@ -28,9 +28,10 @@ import numpy as np
 
 RELATIONS_GOAL = 2.7e9
 
-RELATIONS_PTN = re.compile("Found ([0-9]*) relations in.*(2330L\.c207\.[0-9]*-[0-9]*)")
+RELATIONS_PTN = re.compile("Found ([0-9]*) relations in.*/([0-9_Lc.]*\.[0-9]{5,12}-[0-9]{5,12})")
 STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
+#NUMBER_NAME = "13_945"
 NUMBER_NAME = "2330L.c207"
 
 SQL_FILE = NUMBER_NAME + ".db"
@@ -48,11 +49,16 @@ def parse_log_time(log_time):
 
 def host_name(client):
     if not client:
-        return" <EMPTY>"
-    client = re.sub('vebis.*', 'vebis<X>', client)
-    client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
-    for lsub in ('lrichards-pre2core', 'instance-1', 'localhost'):
-        client = client.replace(lsub, 'lukerichards-<COMP>')
+        return "<EMPTY>"
+    if NUMBER_NAME == "2330L.c207":
+        client = re.sub('vebis.*', 'vebis<X>', client)
+        client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
+        for lsub in ('lrichards-pre2core', 'instance-1', 'localhost'):
+            client = client.replace(lsub, 'lukerichards-<COMP>')
+
+    else:
+        if client.startswith("localhost"):
+            return "localhost++"
 
     return client.split(".")[0]
 
@@ -121,10 +127,12 @@ wuid, client_work = get_client_work()
 with open(LOG_FILE) as f:
     lines = f.readlines()
 
-print()
-print(len(lines), "log lines")
+print ()
+print (len(lines), "log lines")
 
 stat_lines = get_stat_lines(lines)
+print (len(stat_lines), "Stat lines")
+print ()
 
 last_log_date = get_last_log_date(lines)
 print ("Last log date:", last_log_date)
@@ -145,7 +153,7 @@ host_records = defaultdict(lambda: [[], None, None, (10**6, ""), (0, ""), 10**6,
 
 for log_time, wu, relations, total_cpu_seconds in stat_lines:
     if not wu in wuid:
-#        print ("wuid not found", wu, len(wuid))
+        print ("wuid not found", wu, len(wuid))
         continue
 
     host_name_full = wuid[wu]

@@ -30,8 +30,8 @@ def GetData(factor):
 
 
 @app.route("/")
-def Index():
-    number = "2330L.c207"
+@app.route("/<number>/")
+def Index(number="2330L.c207"):
     data = GetData(number + ".status")
     (host_stats, client_stats, host_records,
      other_stats, random_shuf, rels_last_24) = data
