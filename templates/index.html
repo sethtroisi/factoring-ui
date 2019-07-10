@@ -62,10 +62,11 @@
       <td>{{ host_stat[0] }}</td>
       {% if loop.first %}
         <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
+        <td>{{ (host_stat[2] / 3600 / 24 / 365)|round(3) }} years</td>
       {% else %}
         <td>{{ host_stat[1] }} ({{ (100 * host_stat[1] / relations_done) |round(1) }}% total)</td>
+        <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
       {% endif %}
-      <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
       <td>{{ (host_stat[1] / host_stat[2])|round(3) }}</td>
       <td>{{ host_stat[4] }}</td>
       <td>{{ host_stat[3] }}</td>

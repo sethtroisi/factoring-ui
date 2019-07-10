@@ -51,12 +51,13 @@ def host_name(client):
     if not client:
         return "<EMPTY>"
     if NUMBER_NAME == "2330L.c207":
+        client = re.sub(r'\.[0-9a-f]{7,8}$', '', client)
         client = re.sub('vebis.*', 'vebis<X>', client)
         client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
         for lsub in ('lrichards-pre2core', 'instance-1', 'localhost'):
             client = client.replace(lsub, 'lukerichards-<COMP>')
-
-    else:
+        if client.startswith(("math", "birch", "icebear-vm")):
+            return re.sub(r"[0-9]+", "<X>", client)
         if client.startswith("localhost"):
             return "localhost++"
 
@@ -238,10 +239,14 @@ assert host_stats.keys() == client_work.keys(), host_stats.keys()
 
 #-----
 
+def random_eta_lines(count):
+    random_coll = [l for i,l in sorted(random.sample(list(enumerate(eta_lines)), count - 2))]
+    return eta_lines[:1] + random_coll + eta_lines[-1:]
+
 eta_lines = [line for line in lines if '=> ETA' in line]
 print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
 print ()
-random_shuf = [l for i, l in sorted(random.sample(list(enumerate(eta_lines)), 100))] + eta_lines[-1:]
+random_shuf = random_eta_lines(100)
 
 #-----
 total_found_lines = []
@@ -279,7 +284,7 @@ while j < len(total_found_lines):
 
 # Always include last datepoint
 rels_last_24 = total_last_24[-1]
-total_last_24 = sorted(random.sample(total_last_24, 1000)) + [rels_last_24]
+total_last_24 = sorted(random.sample(total_last_24, 5000)) + [rels_last_24]
 
 #--------------------------------------------------------------------------------------------------
 
@@ -301,16 +306,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-log_raw_dates = [" ".join(line.split()[1:3]) for line in random_shuf]
-log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in random_shuf]
-log_dates = [parse_log_time(log_time) for log_time in log_raw_dates]
+log_data = random_eta_lines(5000)
+log_raw_dates = [" ".join(line.split()[1:3]) for line in log_data]
+log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in log_data]
+log_dates = list(map(parse_log_time, log_raw_dates))
 
 plt.plot(log_dates, log_percents)
 
 ax  = plt.gca()
 ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
 ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
-
 ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
 plt.savefig(GRAPH_FILE)
@@ -321,6 +326,10 @@ rels_24_dates = [dt for dt, _ in total_last_24]
 rels_24_count = [ct for _, ct in total_last_24]
 
 ax.clear()
+
+ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
+ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
+ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.01e'))
 
 plt.plot(rels_24_dates, rels_24_count)
 plt.ylabel("Relations in last 24 hours")
