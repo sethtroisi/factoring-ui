@@ -33,7 +33,7 @@
   <thead class="thead-dark">
     <tr>
       <th scope="col">{{ type }}</th>
-      <th scope="col">badges</th>
+      <th scope="col">Badges</th>
       <th scope="col"># of workunits</th>
       <th scope="col">Relations</th>
       <th scope="col">CPU-days</th>
@@ -46,7 +46,7 @@
     {% for client, host_stat in stats %}
     <tr>
       <th scope="row">{{ client }}</th>
-      <th scope="row">
+      <td>
         {% if client in host_badges %}
           <span class="badge-row">
             {% for b, num, desc in host_badges[client] -%}
@@ -59,7 +59,7 @@
             {%- endfor %}
           <span>
         {% endif %}
-      </th>
+      </td>
       <td>{{ host_stat[0] }}</td>
       {% if loop.first %}
         <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
@@ -78,7 +78,7 @@
 {%- endmacro %}
 
 <body>
-  <div id='status'>This is iteration 5, Let me know if the thread if you want anything</div>
+  <div id='status'>This is iteration 6, Let me know if the thread if you want anything</div>
 
   <div id='main-col' class="container">
     <div class="text-center">
@@ -86,12 +86,28 @@
       <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
       <h3>{{ eta }}</h3>
       <h4>Relations last 24hrs: <strong>{{ rels_last_24 }}</strong></h3>
-      <div>Work Unit Recieved: {{ last_wu }} ({{ (wu_delta_s/60)|int }} minutes ago)</div>
-      <div>Last updated: {{ last_update }} ({{ (updated_delta_s/60)|int }} minutes ago)</div>
     </div>
     <br>
 
     <div id="results-tabs">
+      <table id="head-stats" class="table table-sm table-hover">
+        <thead class="thead-dark">
+          <tr>
+            <th scope="col">Active Hosts</th>
+            <th scope="col">Active Clients</th>
+            <th scope="col">Last Work Unit recieved</th>
+            <th scope="col">Last Update</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ active_hosts }} (last 2h)</td>
+            <td>{{ active_clients }} (last 2h)</td>
+            <td>{{ last_wu }} <strong>({{ (wu_delta_s/60)|int }} minutes ago)<strong></td>
+            <td>{{ last_update }} <strong>({{ (updated_delta_s/60)|int }} minutes ago)<strong></td>
+          </tr>
+        </tbody>
+      </table>
       <ul class="nav nav-tabs">
         <li class="nav-item"><a href="#hosts" class="nav-link active" data-toggle="tab">Host Stats</a></li>
         <li class="nav-item"><a href="#clients" class="nav-link" data-toggle="tab">Individual Client Stats</a></li>

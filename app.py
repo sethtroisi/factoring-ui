@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import re
@@ -28,6 +28,8 @@ def GetData(factor):
 
     return factor_data
 
+def log_date_str_to_datetime(log_date_str):
+    return datetime.strptime(log_date_str, "%Y-%m-%d %H:%M:%S,%f")
 
 @app.route("/")
 @app.route("/<number>/")
@@ -44,7 +46,7 @@ def Index(number="2330L.c207"):
     last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     updated_delta_s = time.time() - mtime
     last_wu = max(host_stat[3] for host_stat in host_stats.values())
-    last_wu_time = datetime.timestamp(datetime.strptime(last_wu, "%Y-%m-%d %H:%M:%S,%f"))
+    last_wu_time = datetime.timestamp(log_date_str_to_datetime(last_wu))
     wu_delta_s = time.time() - last_wu_time
 
     found = sum(s[0] for s in host_stats.values())
@@ -55,6 +57,13 @@ def Index(number="2330L.c207"):
     total_line = ("total", (found, relations_done, all_cpus, newest_wu))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
     client_stats = sorted(client_stats.items())
+
+    def active_nodes(named_stats):
+        return sum(1 for name, stats in named_stats if
+            log_date_str_to_datetime(stats[3]) + timedelta(hours=2) > datetime.now())
+
+    active_hosts = active_nodes(host_stats)
+    active_clients = active_nodes(client_stats)
 
     def minimize_line(line):
         line = line.split(" ", 1)[1]
@@ -83,10 +92,12 @@ def Index(number="2330L.c207"):
 
         max_relations=max_relations,
         host_stats=host_stats,
+        active_hosts=active_hosts,
         host_badges=host_badges,
         badge_names=badge_names,
 
         client_stats=client_stats,
+        active_clients=active_clients,
 
         random_shuf=random_shuf,
 
@@ -95,8 +106,6 @@ def Index(number="2330L.c207"):
         updated_delta_s=updated_delta_s,
         last_wu=last_wu,
         wu_delta_s=wu_delta_s,
-
-
     )
 
 
@@ -107,7 +116,6 @@ def Favicon():
 
 @app.route('/progress/<name>/<graph>')
 def factor_progress(name, graph):
-    print (graph)
     return send_from_directory(
         app.root_path, name + "." + graph + ".png",
         cache_timeout=120)
