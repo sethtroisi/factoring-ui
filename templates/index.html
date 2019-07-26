@@ -15,8 +15,15 @@
 }
 
 #main-col {
-  max-width: 80%
+  max-width: 92%
 }
+
+@media (min-width: 1400px) {
+  #main-col {
+    max-width: 80%
+  }
+}
+
 
 </style>
 
@@ -78,7 +85,7 @@
 {%- endmacro %}
 
 <body>
-  <div id='status'>This is iteration 6, Let me know if the thread if you want anything</div>
+  <div id='status'>This is iteration 6, Let me know in the thread if you want anything</div>
 
   <div id='main-col' class="container">
     <div class="text-center">
@@ -103,10 +110,12 @@
           <tr>
             <td>{{ active_hosts }} (last 2h)</td>
             <td>{{ active_clients }} (last 2h)</td>
-            <td>{{ rels_last_24 }} ({{ (100*rels_last_24/goal)|round(2) }}%) /
+            <td>{{ rels_last_24 }} ({{ (100*rels_last_24/goal)|round(2) }}%) /<br>
                 {{ relations_done }} ({{ (100*relations_done/goal)|round(2) }}%)</td>
-            <td>{{ last_wu }} <strong>({{ (wu_delta_s/60)|int }} minutes ago)<strong></td>
-            <td>{{ last_update }} <strong>({{ (updated_delta_s/60)|int }} minutes ago)<strong></td>
+            <td>{{ last_wu }}<br>
+                <strong>({{ (wu_delta_s/60)|int }} minutes ago)</strong></td>
+            <td>{{ last_update }}<br>
+                <strong>({{ (updated_delta_s/60)|int }} minutes ago)</strong></td>
           </tr>
         </tbody>
       </table>
@@ -121,7 +130,7 @@
         <div class="tab-pane active" id="hosts">
           {{ client_stats_table( host_stats, "hosts") }}
           <div>
-            Most relations found in any workunit: {{max_relations}}
+            Most relations found in any workunit: <strong>{{max_relations}}</strong>
           </div>
         </div>
 
