@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <head>
 <style>
-#results tbody tr:first-child {
+#results tbody:first-of-type tr:first-child {
   background-color: #dee2e6
 }
 
@@ -15,13 +15,21 @@
 }
 
 #main-col {
-  max-width: 92%
+  max-width: 92%;
 }
 
 @media (min-width: 1400px) {
   #main-col {
-    max-width: 80%
+    max-width: 80%;
   }
+}
+
+.sub-stats {
+  font-size: 90%;
+}
+
+tbody.sub-stats tr th:first-child {
+  padding-left: 20px;
 }
 
 
@@ -35,7 +43,47 @@
 
 </head>
 
-{% macro client_stats_table(stats, type) -%}
+{% macro stats_row(name, stats, is_first, is_link) %}
+    <tr>
+      <th scope="row">
+        {% if is_link and not is_first %}
+          {# TODO add some :after content: \f077 .collapsed:after content: \f078 #}
+          <a data-toggle="collapse" href="#{{name[:-3]}}-toggle" aria-expanded="false" aria-controls="{{name[:-3]}}-toggle">
+            {{ name }}
+          </a>
+        {% else %}
+          {{ name }}
+        {% endif %}
+      </th>
+      <td>
+        {% if name in host_badges %}
+          <span class="badge-row">
+            {% for b, num, desc in host_badges[name] -%}
+              <span class="badge {{ badge_names[b] }}" data-toggle="tooltip" title="{{desc}}">
+                {{b}}
+                {%- if num -%}
+                  &nbsp;<span class="badge badge-light">{{num}}</span>
+                {%- endif -%}
+              </span>
+            {%- endfor %}
+          <span>
+        {% endif %}
+      </td>
+      <td>{{ stats[0] }}</td>
+      {% if is_first %}
+        <td>{{ stats[1] }} ({{ "{:.2f}".format(100 * stats[1] / 2700000000) }}%)</td>
+        <td>{{ (stats[2] / 3600 / 24 / 365)|round(3) }} years</td>
+      {% else %}
+        <td>{{ stats[1] }} ({{ (100 * stats[1] / relations_done) |round(1) }}% total)</td>
+        <td>{{ (stats[2] / 3600 / 24)|round(1) }}</td>
+      {% endif %}
+      <td>{{ (stats[1] / stats[2])|round(3) }}</td>
+      <td>{{ stats[4] }}</td>
+      <td>{{ stats[3] }}</td>
+    </tr>
+{% endmacro %}
+
+{% macro client_stats_table(stats, type, sub_stats) -%}
 <table id="results" class="table table-sm table-hover">
   <thead class="thead-dark">
     <tr>
@@ -49,43 +97,27 @@
       <th scope="col">Last workunit submitted</th>
     </tr>
   </thead>
-  <tbody>
-    {% for client, host_stat in stats %}
-    <tr>
-      <th scope="row">{{ client }}</th>
-      <td>
-        {% if client in host_badges %}
-          <span class="badge-row">
-            {% for b, num, desc in host_badges[client] -%}
-              <span class="badge {{ badge_names[b] }}" data-toggle="tooltip" title="{{desc}}">
-                {{b}}
-                {%- if num -%}
-                  &nbsp;<span class="badge badge-light">{{num}}</span>
-                {%- endif -%}
-              </span>
-            {%- endfor %}
-          <span>
-        {% endif %}
-      </td>
-      <td>{{ host_stat[0] }}</td>
-      {% if loop.first %}
-        <td>{{ host_stat[1] }} ({{ "{:.2f}".format(100 * host_stat[1] / 2700000000) }}%)</td>
-        <td>{{ (host_stat[2] / 3600 / 24 / 365)|round(3) }} years</td>
-      {% else %}
-        <td>{{ host_stat[1] }} ({{ (100 * host_stat[1] / relations_done) |round(1) }}% total)</td>
-        <td>{{ (host_stat[2] / 3600 / 24)|round(1) }}</td>
+    {% for name, row_stats in stats %}
+      <tbody>
+      {{ stats_row(name, row_stats, loop.first, sub_stats|length ) }}
+      </tbody>
+
+      {# Render client stats if this is host #}
+      {% if sub_stats %}
+        <tbody class="collapse sub-stats" id="{{name[:-3]}}-toggle">
+        {% for host_name, host_stats in sub_stats %}
+          {% if host_name.startswith(name.replace("<X>", "")) %}
+            {{ stats_row(host_name, host_stats, false, false) }}
+          {% endif %}
+        {% endfor %}
+        </tbody>
       {% endif %}
-      <td>{{ (host_stat[1] / host_stat[2])|round(3) }}</td>
-      <td>{{ host_stat[4] }}</td>
-      <td>{{ host_stat[3] }}</td>
-    </tr>
     {% endfor %}
-  </tbody>
 </table>
 {%- endmacro %}
 
 <body>
-  <div id='status'>This is iteration 6, Let me know in the thread if you want anything</div>
+  <div id='status'>This is iteration 6.test, Let me know in the thread if you want anything</div>
 
   <div id='main-col' class="container">
     <div class="text-center">
@@ -128,15 +160,15 @@
 
       <div class="tab-content clearfix">
         <div class="tab-pane active" id="hosts">
-          {{ client_stats_table( host_stats, "hosts") }}
+          {{ client_stats_table( host_stats, "Host", client_stats) }}
           <div>
             Most relations found in any workunit: <strong>{{max_relations}}</strong>
           </div>
         </div>
 
         <div class="tab-pane" id="clients">
-          <div>These clients are joined into "hosts" on the main tab</div>
-          {{ client_stats_table( client_stats, "clients") }}
+          <div>These clients are joined into "Hosts" on the main tab</div>
+          {{ client_stats_table( client_stats, "Client", {}) }}
         </div>
 
         <div class="tab-pane" id="log">

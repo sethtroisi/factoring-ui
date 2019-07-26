@@ -55,7 +55,11 @@ def Index(number="2330L.c207"):
 
     total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
-    client_stats = sorted(client_stats.items())
+    print( list(client_stats.items())[0][0] )
+    client_stats = sorted(
+		client_stats.items(),
+		key=lambda p: (p[0].split(".")[0], p[1][3]),
+		reverse=True)
 
     def active_nodes(named_stats):
         return sum(1 for name, stats in named_stats if
