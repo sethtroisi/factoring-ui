@@ -29,7 +29,17 @@
 }
 
 tbody.sub-stats tr th:first-child {
-  padding-left: 20px;
+  padding-left: 25px;
+}
+
+.name-row a:after {
+  font-family:Fontawesome;
+  content: '\f077';
+}
+
+.name-row a.collapsed:after {
+  font-family:Fontawesome;
+  content: '\f054';
 }
 
 
@@ -37,6 +47,7 @@ tbody.sub-stats tr th:first-child {
 
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
 {% set base="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0" %}
 <link rel="stylesheet" href="{{base}}/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 <script src="{{base}}/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
@@ -45,10 +56,11 @@ tbody.sub-stats tr th:first-child {
 
 {% macro stats_row(name, stats, is_first, is_link) %}
     <tr>
-      <th scope="row">
+      <th scope="row" class="name-row">
         {% if is_link and not is_first %}
           {# TODO add some :after content: \f077 .collapsed:after content: \f078 #}
-          <a data-toggle="collapse" href="#{{name[:-3]}}-toggle" aria-expanded="false" aria-controls="{{name[:-3]}}-toggle">
+          <a data-toggle="collapse" href="#{{name[:-3]}}-toggle" class="collapsed"
+             aria-expanded="false" aria-controls="{{name[:-3]}}-toggle">
             {{ name }}
           </a>
         {% else %}
