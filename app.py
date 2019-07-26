@@ -41,7 +41,6 @@ def Index(number="2330L.c207"):
 
     RELATION_GOAL = 2.7e9
 
-
     newest_eta = random_shuf[-1].split("as ok")[-1].strip(' ()\n')
     last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     updated_delta_s = time.time() - mtime
@@ -49,12 +48,12 @@ def Index(number="2330L.c207"):
     last_wu_time = datetime.timestamp(log_date_str_to_datetime(last_wu))
     wu_delta_s = time.time() - last_wu_time
 
-    found = sum(s[0] for s in host_stats.values())
+    workunits_done = sum(s[0] for s in host_stats.values())
     relations_done = sum(s[1] for s in host_stats.values())
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
 
-    total_line = ("total", (found, relations_done, all_cpus, newest_wu))
+    total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
     client_stats = sorted(client_stats.items())
 
@@ -86,7 +85,9 @@ def Index(number="2330L.c207"):
     return render_template(
         "index.html",
         number=number,
-        found=found,
+        goal=RELATION_GOAL,
+
+        workunits_done=workunits_done,
         relations_done=relations_done,
         rels_last_24=rels_last_24,
 

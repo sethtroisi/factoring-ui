@@ -82,10 +82,9 @@
 
   <div id='main-col' class="container">
     <div class="text-center">
-      <h1 class="text-center">Factoring Progress for 2,2330L</h1>
-      <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
+      <h1 class="text-center">Factoring Progress for {{number}}</h1>
       <h3>{{ eta }}</h3>
-      <h4>Relations last 24hrs: <strong>{{ rels_last_24 }}</strong></h3>
+      <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
     </div>
     <br>
 
@@ -95,6 +94,7 @@
           <tr>
             <th scope="col">Active Hosts</th>
             <th scope="col">Active Clients</th>
+            <th scope="col">Relations (24hr / total)</th>
             <th scope="col">Last Work Unit recieved</th>
             <th scope="col">Last Update</th>
           </tr>
@@ -103,6 +103,8 @@
           <tr>
             <td>{{ active_hosts }} (last 2h)</td>
             <td>{{ active_clients }} (last 2h)</td>
+            <td>{{ rels_last_24 }} ({{ (100*rels_last_24/goal)|round(2) }}%) /
+                {{ relations_done }} ({{ (100*relations_done/goal)|round(2) }}%)</td>
             <td>{{ last_wu }} <strong>({{ (wu_delta_s/60)|int }} minutes ago)<strong></td>
             <td>{{ last_update }} <strong>({{ (updated_delta_s/60)|int }} minutes ago)<strong></td>
           </tr>
