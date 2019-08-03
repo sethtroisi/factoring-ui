@@ -215,6 +215,7 @@ for host, host_record in host_records.items():
 
 ##### Output #####
 
+# Filter clients with a single WU
 client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
 for h in client_stats:
     host_stats.pop(h)

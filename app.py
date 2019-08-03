@@ -53,13 +53,14 @@ def Index(number="2330L.c207"):
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
 
-    total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu))
+    total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu, rels_last_24))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
-    print( list(client_stats.items())[0][0] )
     client_stats = sorted(
 		client_stats.items(),
 		key=lambda p: (p[0].split(".")[0], p[1][3]),
 		reverse=True)
+    # Filter clients with only one WU.
+    client_stats = [(c,v) for c,v in client_stats if v[0] > 1]
 
     def active_nodes(named_stats):
         return sum(1 for name, stats in named_stats if

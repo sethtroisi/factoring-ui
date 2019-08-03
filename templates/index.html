@@ -83,14 +83,14 @@ tbody.sub-stats tr th:first-child {
       </td>
       <td>{{ stats[0] }}</td>
       {% if is_first %}
-        <td>{{ stats[1] }} ({{ "{:.2f}".format(100 * stats[1] / 2700000000) }}%)</td>
+        <td>{{ "{:,}".format(stats[1]) }} ({{ "{:.2f}".format(100 * stats[1] / 2700000000) }}%)</td>
         <td>{{ (stats[2] / 3600 / 24 / 365)|round(3) }} years</td>
       {% else %}
-        <td>{{ stats[1] }} ({{ (100 * stats[1] / relations_done) |round(1) }}% total)</td>
+        <td>{{ "{:,}".format(stats[1]) }} ({{ (100 * stats[1] / relations_done) |round(1) }}% total)</td>
         <td>{{ (stats[2] / 3600 / 24)|round(1) }}</td>
       {% endif %}
       <td>{{ (stats[1] / stats[2])|round(3) }}</td>
-      <td>{{ stats[4] }}</td>
+      <td>{{ "{:,}".format(stats[4]) }}</td>
       <td>{{ stats[3] }}</td>
     </tr>
 {% endmacro %}
@@ -155,7 +155,7 @@ tbody.sub-stats tr th:first-child {
             <td>{{ active_hosts }} (last 2h)</td>
             <td>{{ active_clients }} (last 2h)</td>
             <td>{{ rels_last_24 }} ({{ (100*rels_last_24/goal)|round(2) }}%) /<br>
-                {{ relations_done }} ({{ (100*relations_done/goal)|round(2) }}%)</td>
+                <strong>{{ relations_done }} ({{ (100*relations_done/goal)|round(2) }}%)</strong></td>
             <td>{{ last_wu }}<br>
                 <strong>({{ (wu_delta_s/60)|int }} minutes ago)</strong></td>
             <td>{{ last_update }}<br>
