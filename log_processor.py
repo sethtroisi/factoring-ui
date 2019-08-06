@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 # Look for lines like
 PID22558 2019-06-01 22:37:01,063 Info:HTTP server: 123.123.123.123 Sending workunit 2330L.c207_sieving_13849000-13850000 to client <NAME>.<HASH>
@@ -15,6 +15,7 @@ PID22558 2019-06-02 14:44:23,920 Info:Lattice Sieving: Found 9979 relations in '
 
 '''
 
+import argparse
 import datetime
 import json
 import random
@@ -26,6 +27,7 @@ from collections import Counter, defaultdict
 from operator import itemgetter
 
 import numpy as np
+
 
 RELATIONS_GOAL = 2.7e9
 
@@ -42,6 +44,25 @@ STATUS_FILE = NUMBER_NAME + ".status"
 GRAPH_FILE  = NUMBER_NAME + ".progress.png"
 PER_DAY_GRAPH_FILE  = NUMBER_NAME + ".daily_r.png"
 
+
+def get_args():
+    parser = argparse.ArgumentParser(description="log processor for factoring ui of CADO-NFS")
+    parser.add_argument('-o', '--output', required=True,
+        type=argparse.FileType('w'),
+        help="output file path prefix")
+
+    # TODO find a better way to pass config settings
+    parser.add_argument('-n', '--name', required=True,
+        help="Name of this factoring effort (e.g. 2330L or RSA120)")
+    parser.add_argument('-g', '--goal', required=True, type=float,
+        help="should match tasks.sieve.rels_wanted")
+    parser.add_argument('-s', '--sql_file', required=True,
+        help="path to sql database created by cado-nfs.py")
+    parser.add_argument('-l', '--log_file', required=True,
+        help="path to log file created by cado-nfs.py")
+
+    args = parser.parse_args()
+    return args
 
 
 def parse_log_time(log_time):
@@ -122,131 +143,13 @@ def get_last_log_date(lines):
     return datetime.datetime.uctnow()
 
 
-##### MAIN #####
-
-wuid, client_work = get_client_work()
-
-with open(LOG_FILE) as f:
-    lines = f.readlines()
-
-print ()
-print (len(lines), "log lines")
-
-stat_lines = get_stat_lines(lines)
-print (len(stat_lines), "Stat lines")
-print ()
-
-last_log_date = get_last_log_date(lines)
-print ("Last log date:", last_log_date)
-print ()
-
-one_day_ago = last_log_date - datetime.timedelta(days=1)
-
-##### Varibles for badges #####
-
-# wu, relations, cpu_s, last_log, rels_last_24
-host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
-
-# badges
-# first, last
-# min_relations, max_relations
-# min_cpu_seconds, max_cpu_seconds
-host_records = defaultdict(lambda: [[], None, None, (10**6, ""), (0, ""), 10**6, 0])
-
-for log_time, wu, relations, total_cpu_seconds in stat_lines:
-    if not wu in wuid:
-        print ("wuid not found", wu, len(wuid))
-        continue
-
-    host_name_full = wuid[wu]
-    host_name_short = host_name(wuid[wu])
-
-    # Short stats under both short and full name
-    for host in set([host_name_full, host_name_short]):
-        host_stat = host_stats[host]
-        host_stat[0] += 1
-        host_stat[1] += relations
-        host_stat[2] += total_cpu_seconds
-        host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
-        host_stat[4] += relations if parse_log_time(log_time) > one_day_ago else 0
-
-        host_record = host_records[host]
-        host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
-        host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
-
-        host_record[3] = min(host_record[3], (relations, wu))
-        host_record[4] = max(host_record[4], (relations, wu))
-
-        host_record[5] = min(host_record[5], total_cpu_seconds)
-        host_record[6] = max(host_record[6], total_cpu_seconds)
-
-
-wu_relations = sorted(map(itemgetter(2), stat_lines))
-max_relations = wu_relations[-1]
-unlucky_relations = np.percentile(wu_relations, 0.1)
-lucky_relations = np.percentile(wu_relations, 99.9)
-
-print (f"{unlucky_relations:.1f}, {lucky_relations:.1f} [un]lucky relations")
-print ()
-
-for host, host_record in host_records.items():
-    if host_record[3][0] <= unlucky_relations:
-        host_record[0].append(("unlucky", host_record[3][0], host_record[3][1]))
-
-    if host_record[4][0] >= lucky_relations:
-        host_record[0].append(("lucky", host_record[4][0], host_record[4][1]))
-
-    time_delta = parse_log_time(host_record[2]) - parse_log_time(host_record[1])
-    if time_delta.days > 7:
-        weeks = time_delta.total_seconds() / (7 * 24 * 3600)
-        host_record[0].append((
-            "weeks",
-            int(time_delta.days) // 7,
-            "{:.2f} Weeks of workunits".format(weeks),
-        ))
-
-    total_cpu_seconds = host_stats[host][2]
-    cpu_year = total_cpu_seconds / (365 * 24 * 3600)
-    if cpu_year >= 1:
-        host_record[0].append((
-            "CPU-years",
-            int(cpu_year),
-            "{:.2f} CPU years!".format(cpu_year),
-        ))
-
-##### Output #####
-
-# Filter clients with a single WU
-client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
-for h in client_stats:
-    host_stats.pop(h)
-
-found          = sum(map(itemgetter(0), host_stats.values()))
-relations_done = sum(map(itemgetter(1), host_stats.values()))
-print ("Found {} workunits, {} relations ~{:.2f}%".format(
-    found, relations_done, 100 * relations_done / RELATIONS_GOAL))
-print ()
-
-for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
-    stat_wu, stat_r, stat_cpus, stat_last, rels_last_24 = host_stats[host]
-    host_record = host_records[host]
-    wus = client_work[host]
-    print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
-        host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
-    print ("\t\t", ", ".join(map(str, host_record[0])))
-    print ("\t\t", ", ".join(map(str, host_record[1:])))
-print ()
-
-assert host_stats.keys() == client_work.keys(), host_stats.keys()
-
-#-----
-
 def sub_sample(items, max_count):
     """Sample at most max_count elements from items."""
     # random.sample is unhappy with count > len(items)
     count = min(len(items) - 2, max_count)
     indexes = sorted(random.sample(range(len(items)), count))
     return [items[i] for i in indexes]
+
 
 def sub_sample_with_endpoints(items, max_count):
     """sub_sample but include first and last item."""
@@ -255,95 +158,239 @@ def sub_sample_with_endpoints(items, max_count):
         return items
     return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
-eta_lines = [line for line in lines if '=> ETA' in line]
-print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
-print ()
-random_shuf = sub_sample_with_endpoints(eta_lines, 100)
 
-#-----
-total_found_lines = []
-for line in lines:
-    match = re.search('(20[12][0-9]-[\w-]* [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)', line)
-    if match:
-        datetime_raw, found_raw = match.groups()
-        total_found_lines.append((
-            parse_log_time(datetime_raw), int(found_raw)
-        ))
+def get_host_stats(stat_lines, wuid):
+    # wu, relations, cpu_s, last_log, rels_last_24
+    host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
 
-total_found_lines.append((
-    last_log_date, total_found_lines[-1][1]
-))
+    # badges
+    # first, last
+    # min_relations, max_relations
+    # min_cpu_seconds, max_cpu_seconds
+    host_records = {}
 
-total_last_24 = []
-i = 0
-j = 0
-while j < len(total_found_lines):
-    a = total_found_lines[i]
-    b = total_found_lines[j]
+    for log_time, wu, relations, total_cpu_seconds in stat_lines:
+        if not wu in wuid:
+            print ("wuid not found", wu, len(wuid))
+            continue
 
-    if (b[0] - a[0]).days > 0:
-        i += 1
-        continue
+        host_name_full = wuid[wu]
+        host_name_short = host_name(wuid[wu])
 
-    delta = b[1] - a[1]
-    total_last_24.append((
-        b[0],
-        delta,
+        # Short stats under both short and full name
+        for host in set([host_name_full, host_name_short]):
+            host_stat = host_stats[host]
+            host_stat[0] += 1
+            host_stat[1] += relations
+            host_stat[2] += total_cpu_seconds
+            host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
+            host_stat[4] += relations if parse_log_time(log_time) > one_day_ago else 0
+
+            if host not in host_record:
+                host_records[host] = [
+                    [],
+                    log_time, log_time,
+                    (relations, wu), (relations, wu),
+                    total_cpu_seconds, total_cpu_seconds
+                ]
+            else:
+                host_record = host_records.get(host):
+                host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
+                host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
+
+                host_record[3] = min(host_record[3], (relations, wu))
+                host_record[4] = max(host_record[4], (relations, wu))
+
+                host_record[5] = min(host_record[5], total_cpu_seconds)
+                host_record[6] = max(host_record[6], total_cpu_seconds)
+
+    wu_relations = sorted(map(itemgetter(2), stat_lines))
+    max_relations = wu_relations[-1]
+    unlucky_relations = np.percentile(wu_relations, 0.1)
+    lucky_relations = np.percentile(wu_relations, 99.9)
+
+    print (f"{unlucky_relations:.1f}, {lucky_relations:.1f} [un]lucky relations")
+    print ()
+
+    for host, host_record in host_records.items():
+        if host_record[3][0] <= unlucky_relations:
+            host_record[0].append(("unlucky", host_record[3][0], host_record[3][1]))
+
+        if host_record[4][0] >= lucky_relations:
+            host_record[0].append(("lucky", host_record[4][0], host_record[4][1]))
+
+        time_delta = parse_log_time(host_record[2]) - parse_log_time(host_record[1])
+        if time_delta.days > 7:
+            weeks = time_delta.total_seconds() / (7 * 24 * 3600)
+            host_record[0].append((
+                "weeks",
+                int(time_delta.days) // 7,
+                "{:.2f} Weeks of workunits".format(weeks),
+            ))
+
+        total_cpu_seconds = host_stats[host][2]
+        cpu_year = total_cpu_seconds / (365 * 24 * 3600)
+        if cpu_year >= 1:
+            host_record[0].append((
+                "CPU-years",
+                int(cpu_year),
+                "{:.2f} CPU years!".format(cpu_year),
+            ))
+
+    ##### Print Host Stats #####
+
+    found          = sum(map(itemgetter(0), host_stats.values()))
+    relations_done = sum(map(itemgetter(1), host_stats.values()))
+    print ("Found {} workunits, {} relations ~{:.2f}%".format(
+        found, relations_done, 100 * relations_done / RELATIONS_GOAL))
+    print ()
+
+    for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
+        stat_wu, stat_r, stat_cpus, stat_last, _ = host_stats[host]
+        host_record = host_records[host]
+        wus = client_work[host]
+        print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
+            host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
+        print ("\t\t", ", ".join(map(str, host_record[0])))
+        print ("\t\t", ", ".join(map(str, host_record[1:])))
+    print ()
+
+    assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
+
+    return host_stats, host_records
+
+
+def relations_last_24hr(log_lines)
+    total_found_lines = []
+    for line in log_lines:
+        match = re.search('(20[12][0-9]-[\w-]* [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)', line)
+        if match:
+            datetime_raw, found_raw = match.groups()
+            total_found_lines.append((
+                parse_log_time(datetime_raw), int(found_raw)
+            ))
+
+    total_found_lines.append((
+        last_log_date, total_found_lines[-1][1]
     ))
 
-#    print (i, j, b[0] - a[0])
-    j += 1
+    total_last_24 = []
+    i = 0
+    j = 0
+    while j < len(total_found_lines):
+        a = total_found_lines[i]
+        b = total_found_lines[j]
+        time_delta = b[0] - a[0]
 
-# Always include last datepoint
-rels_last_24 = total_last_24[-1]
-total_last_24 = sub_sample_with_endpoints(total_last_24, 3000)
+        if (time_delta).days > 0:
+            # decrease time interval
+            i += 1
+            continue
 
-#--------------------------------------------------------------------------------------------------
+        delta = b[1] - a[1]
+        delta_normalized = delta / (time_delta.total_seconds() / 86400)
+        total_last_24.append( (b[0], delta_normalized) )
+        j += 1
 
-with open(STATUS_FILE, "w") as f:
-    json.dump([
-        host_stats, client_stats, host_records,
-        [max_relations, time.time()],
-        random_shuf, rels_last_24[1],
-    ], f)
+    rels_last_24 = total_last_24[-1]
+    total_last_24 = sub_sample_with_endpoints(total_last_24, 3000)
+    return rels_last_24, total_last_24
 
-#--------------------------------------------------------------------------------------------------
 
-from matplotlib.dates import DateFormatter
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.ticker as ticker
-import matplotlib.pyplot as plt
+def generate_charts(eta_lines, total_last_24):
+    from matplotlib.dates import DateFormatter
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.ticker as ticker
+    import matplotlib.pyplot as plt
 
-import seaborn as sns
-sns.set()
+    import seaborn as sns
+    sns.set()
 
-log_data = sub_sample_with_endpoints(eta_lines, 2000)
-log_raw_dates = [" ".join(line.split()[1:3]) for line in log_data]
-log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in log_data]
-log_dates = list(map(parse_log_time, log_raw_dates))
+    log_data = sub_sample_with_endpoints(eta_lines, 2000)
+    log_raw_dates = [" ".join(line.split()[1:3]) for line in log_data]
+    log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in log_data]
+    log_dates = list(map(parse_log_time, log_raw_dates))
 
-plt.plot(log_dates, log_percents)
+    plt.plot(log_dates, log_percents)
 
-ax  = plt.gca()
-ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
-ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
-ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
+    ax  = plt.gca()
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
+    ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
-plt.savefig(GRAPH_FILE)
-print("Saved as ", GRAPH_FILE)
+    plt.savefig(GRAPH_FILE)
+    print("Saved as ", GRAPH_FILE)
 
-rels_24_dates = [dt for dt, _ in total_last_24]
-rels_24_count = [ct for _, ct in total_last_24]
+    rels_24_dates = [dt for dt, _ in total_last_24]
+    rels_24_count = [ct for _, ct in total_last_24]
 
-ax.clear()
+    ax.clear()
 
-ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
-ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
-ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.01e'))
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(8))
+    ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.01e'))
 
-plt.plot(rels_24_dates, rels_24_count)
-plt.ylabel("Relations in last 24 hours")
+    plt.plot(rels_24_dates, rels_24_count)
+    plt.ylabel("Relations in last 24 hours")
 
-plt.savefig(PER_DAY_GRAPH_FILE)
-print("Saved as ", PER_DAY_GRAPH_FILE)
+    plt.savefig(PER_DAY_GRAPH_FILE)
+    print("Saved as ", PER_DAY_GRAPH_FILE)
+
+
+##### MAIN #####
+
+def parse(args):
+    wuid, client_work = get_client_work()
+
+    with open(LOG_FILE) as f:
+        lines = f.readlines()
+
+    print ()
+    print (len(lines), "log lines")
+
+    stat_lines = get_stat_lines(lines)
+    print (len(stat_lines), "Stat lines")
+    print ()
+
+    last_log_date = get_last_log_date(lines)
+    print ("Last log date:", last_log_date)
+    print ()
+
+    one_day_ago = last_log_date - datetime.timedelta(days=1)
+
+    ##### Host/Client stats (and badge variables) #####
+
+    host_stats, host_records = get_host_stats(stat_lines, wuid)
+
+    client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
+    for h in client_stats:
+        host_stats.pop(h)
+
+    ##### Eta logs #####
+
+    eta_lines = [line for line in lines if '=> ETA' in line]
+    print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}\n")
+    eta_logs_sample = sub_sample_with_endpoints(eta_lines, 100)
+
+    ##### Relations per 24 hours #####
+
+    rels_last_24, total_last_24 = relations_last_24hr(lines)
+
+
+    ##### Write status file #####
+
+    with open(STATUS_FILE, "w") as f:
+        json.dump([
+            host_stats, client_stats, host_records,
+            [time.time()],
+            eta_logs_sample, rels_last_24[1],
+        ], f)
+
+    ##### Generate charts #####
+    generate_charts(eta_lines, total_last_24)
+
+
+if __name__ == "__main__":
+    args = get_args()
+    parse(args)

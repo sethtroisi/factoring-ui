@@ -37,6 +37,6 @@ pip install -r requirements.txt
 
 * [ ] Support MySQL
 * [ ] Display information about
+  * [ ] Paramenters (minus paths)
   * [ ] Failed / timedout tasks
   * [ ] Polyselect
-

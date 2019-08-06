@@ -31,12 +31,12 @@ def log_date_str_to_datetime(log_date_str):
 def Index(number="2330L.c207"):
     data = GetData(number + ".status")
     (host_stats, client_stats, host_records,
-     other_stats, random_shuf, rels_last_24) = data
-    max_relations, mtime = other_stats
+     other_stats, eta_logs_sample, rels_last_24) = data
+    mtime = other_stats
 
     RELATION_GOAL = 2.7e9
 
-    newest_eta = random_shuf[-1].split("as ok")[-1].strip(' ()\n')
+    newest_eta = eta_logs_sample[-1].split("as ok")[-1].strip(' ()\n')
     last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     updated_delta_s = time.time() - mtime
     last_wu = max(host_stat[3] for host_stat in host_stats.values())
@@ -69,7 +69,7 @@ def Index(number="2330L.c207"):
         line = line.replace("Info:", "")
         return line
 
-    random_shuf = list(map(minimize_line, random_shuf))
+    eta_logs_sample = list(map(minimize_line, eta_logs_sample))
 
     host_badges = {host: records[0] for host, records in host_records.items()}
     badges = set(badge[0] for badges in host_badges.values() for badge in badges)
@@ -91,7 +91,6 @@ def Index(number="2330L.c207"):
         relations_done=relations_done,
         rels_last_24=rels_last_24,
 
-        max_relations=max_relations,
         host_stats=host_stats,
         active_hosts=active_hosts,
         host_badges=host_badges,
