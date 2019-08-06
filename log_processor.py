@@ -10,7 +10,7 @@ PID22558 2019-06-02 14:44:23,919 Debug:Lattice Sieving: stderr is: b"# redoing q
 PID22558 2019-06-02 14:44:23,919 Debug:Lattice Sieving: Newly arrived stats: {'stats_avg_J': '22434.0 68', 'stats_max_bucket_fill': '1,1s:1.07761', 'stats_total_cpu_time': '5644.79', 'stats_total_time': '1502.33'}
 # Next, and Next
 PID22558 2019-06-02 14:44:23,920 Debug:Lattice Sieving: Combined stats: {'stats_avg_J': '19767.628076462464 356619', 'stats_max_bucket_fill': '1.0,1s:1.121320', 'stats_total_cpu_time': '30737474.54999989', 'stats_total_time': '8206173.819999958'}
-PID22558 2019-06-02 14:44:23,920 Info:Lattice Sieving: Found 9979 relations in '<PATH>/cado-nfs/2330Ljob/2330L.c207.upload/2330L.c207.14709000-14710000.xbygw_pr.gz', total is now 61549262/2700000000
+PID22558 2019-06-02 14:44:23,920 Info:Lattice Sieving: Found 9979 relations in '<PATH>/2330L.c207.upload/2330L.c207.14709000-14710000.xbygw_pr.gz', total is now 61549262/2700000000
 
 '''
 
@@ -240,14 +240,24 @@ assert host_stats.keys() == client_work.keys(), host_stats.keys()
 
 #-----
 
-def random_eta_lines(count):
-    random_coll = [l for i,l in sorted(random.sample(list(enumerate(eta_lines)), count - 2))]
-    return eta_lines[:1] + random_coll + eta_lines[-1:]
+def sub_sample(items, max_count):
+    """Sample at most max_count elements from items."""
+    # random.sample is unhappy with count > len(items)
+    count = min(len(items) - 2, max_count)
+    indexes = sorted(random.sample(range(len(items)), count))
+    return [items[i] for i in indexes]
+
+def sub_sample_with_endpoints(items, max_count):
+    """sub_sample but include first and last item."""
+    assert max_count >= 2, "must be greater than 2 to include endpoints"
+    if len(items) <= 2:
+        return items
+    return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
 eta_lines = [line for line in lines if '=> ETA' in line]
 print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}")
 print ()
-random_shuf = random_eta_lines(100)
+random_shuf = sub_sample_with_endpoints(eta_lines, 100)
 
 #-----
 total_found_lines = []
@@ -285,7 +295,7 @@ while j < len(total_found_lines):
 
 # Always include last datepoint
 rels_last_24 = total_last_24[-1]
-total_last_24 = sorted(random.sample(total_last_24, 5000)) + [rels_last_24]
+total_last_24 = sub_sample_with_endpoints(total_last_24, 3000)
 
 #--------------------------------------------------------------------------------------------------
 
@@ -307,7 +317,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-log_data = random_eta_lines(5000)
+log_data = sub_sample_with_endpoints(eta_lines, 2000)
 log_raw_dates = [" ".join(line.split()[1:3]) for line in log_data]
 log_percents = [float(re.search(r"([0-9.]+)%", line).group(1)) for line in log_data]
 log_dates = list(map(parse_log_time, log_raw_dates))
@@ -321,7 +331,6 @@ ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
 plt.savefig(GRAPH_FILE)
 print("Saved as ", GRAPH_FILE)
-#plt.show()
 
 rels_24_dates = [dt for dt, _ in total_last_24]
 rels_24_count = [ct for _, ct in total_last_24]
@@ -337,5 +346,3 @@ plt.ylabel("Relations in last 24 hours")
 
 plt.savefig(PER_DAY_GRAPH_FILE)
 print("Saved as ", PER_DAY_GRAPH_FILE)
-
-#plt.show()
