@@ -23,7 +23,7 @@ These can be installed with
 pip install -r requirements.txt
 ```
 
-### Wishlist
+### TODO cleanups
 
 * [ ] Remove constants from logs_processor.py
   * [ ] Config for rel_goal, name, host regexes...
@@ -31,6 +31,12 @@ pip install -r requirements.txt
 * [ ] Test with local run
   * [ ] Add command example(s)
   * [ ] Add crontab example(s)
-* [ ] Support MySQL
 * [ ] Remove numpy.percentile
+
+### Future Features
+
+* [ ] Support MySQL
+* [ ] Display information about
+  * [ ] Failed / timedout tasks
+  * [ ] Polyselect
 
