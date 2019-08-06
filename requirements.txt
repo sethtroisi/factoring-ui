@@ -1,0 +1,6 @@
+flask
+flask-caching
+sqlite3
+numpy
+matplotlib
+seaborn

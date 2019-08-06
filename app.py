@@ -8,25 +8,20 @@ import time
 
 from flask import Flask
 from flask import render_template, send_from_directory
-from werkzeug.contrib.cache import SimpleCache
+from flask_caching import Cache
 
 
 print('Setting up CADO Factor')
 app = Flask(__name__)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-cache = SimpleCache()
 
-
+@cache.cached(timeout=5 * 60)
 def GetData(factor):
-    factor_data = cache.get(factor)
-    if factor_data is None:
-        # TODO handle file not existing
-        status_path = os.path.join(app.root_path, factor)
-        with open(status_path) as f:
-            factor_data = json.load(f)
-        cache.set(factor, factor_data, timeout=5 * 60)
-
-    return factor_data
+    # TODO handle file not existing
+    status_path = os.path.join(app.root_path, factor)
+    with open(status_path) as f:
+        return json.load(f)
 
 def log_date_str_to_datetime(log_date_str):
     return datetime.strptime(log_date_str, "%Y-%m-%d %H:%M:%S,%f")
