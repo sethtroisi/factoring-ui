@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 # Look for lines like
 PID22558 2019-06-01 22:37:01,063 Info:HTTP server: 123.123.123.123 Sending workunit 2330L.c207_sieving_13849000-13850000 to client <NAME>.<HASH>
