@@ -182,7 +182,7 @@ tbody.sub-stats tr th:first-child {
 
         <div class="tab-pane" id="log">
           <h3>Server ETA logs</h3>
-          {% for log in random_shuf[::-1] %}
+          {% for log in eta_logs_sample|reverse %}
             <div>{{ log }}</div>
           {% endfor %}
         </div>

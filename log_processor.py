@@ -159,7 +159,7 @@ def sub_sample_with_endpoints(items, max_count):
     return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
 
-def get_host_stats(stat_lines, wuid):
+def get_host_stats(client_work, wuid, stat_lines, one_day_ago):
     # wu, relations, cpu_s, last_log, rels_last_24
     host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
 
@@ -186,7 +186,7 @@ def get_host_stats(stat_lines, wuid):
             host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
             host_stat[4] += relations if parse_log_time(log_time) > one_day_ago else 0
 
-            if host not in host_record:
+            if host not in host_records:
                 host_records[host] = [
                     [],
                     log_time, log_time,
@@ -194,7 +194,7 @@ def get_host_stats(stat_lines, wuid):
                     total_cpu_seconds, total_cpu_seconds
                 ]
             else:
-                host_record = host_records.get(host):
+                host_record = host_records[host]
                 host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
                 host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
 
@@ -237,30 +237,10 @@ def get_host_stats(stat_lines, wuid):
                 "{:.2f} CPU years!".format(cpu_year),
             ))
 
-    ##### Print Host Stats #####
-
-    found          = sum(map(itemgetter(0), host_stats.values()))
-    relations_done = sum(map(itemgetter(1), host_stats.values()))
-    print ("Found {} workunits, {} relations ~{:.2f}%".format(
-        found, relations_done, 100 * relations_done / RELATIONS_GOAL))
-    print ()
-
-    for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
-        stat_wu, stat_r, stat_cpus, stat_last, _ = host_stats[host]
-        host_record = host_records[host]
-        wus = client_work[host]
-        print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
-            host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
-        print ("\t\t", ", ".join(map(str, host_record[0])))
-        print ("\t\t", ", ".join(map(str, host_record[1:])))
-    print ()
-
-    assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
-
     return host_stats, host_records
 
 
-def relations_last_24hr(log_lines)
+def relations_last_24hr(log_lines, last_log_date):
     total_found_lines = []
     for line in log_lines:
         match = re.search('(20[12][0-9]-[\w-]* [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)', line)
@@ -282,15 +262,14 @@ def relations_last_24hr(log_lines)
         b = total_found_lines[j]
         time_delta = b[0] - a[0]
 
-        if (time_delta).days > 0:
+        if (time_delta).days < 0:
+            delta = b[1] - a[1]
+            total_last_24.append( (b[0], delta) )
+            # increase time interval
+            j += 1
+        else:
             # decrease time interval
             i += 1
-            continue
-
-        delta = b[1] - a[1]
-        delta_normalized = delta / (time_delta.total_seconds() / 86400)
-        total_last_24.append( (b[0], delta_normalized) )
-        j += 1
 
     rels_last_24 = total_last_24[-1]
     total_last_24 = sub_sample_with_endpoints(total_last_24, 3000)
@@ -361,11 +340,31 @@ def parse(args):
 
     ##### Host/Client stats (and badge variables) #####
 
-    host_stats, host_records = get_host_stats(stat_lines, wuid)
+    host_stats, host_records = get_host_stats(client_work, wuid, stat_lines, one_day_ago)
 
     client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
     for h in client_stats:
         host_stats.pop(h)
+
+    ##### Print Host Stats #####
+    found          = sum(map(itemgetter(0), host_stats.values()))
+    relations_done = sum(map(itemgetter(1), host_stats.values()))
+    print ("Found {} workunits, {} relations ~{:.2f}%".format(
+        found, relations_done, 100 * relations_done / RELATIONS_GOAL))
+    print ()
+
+    for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
+        stat_wu, stat_r, stat_cpus, stat_last, _ = host_stats[host]
+        host_record = host_records[host]
+        wus = client_work[host]
+        print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
+            host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
+        print ("\t\t", ", ".join(map(str, host_record[0])))
+        print ("\t\t", ", ".join(map(str, host_record[1:])))
+    print ()
+
+    assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
+
 
     ##### Eta logs #####
 
@@ -375,8 +374,7 @@ def parse(args):
 
     ##### Relations per 24 hours #####
 
-    rels_last_24, total_last_24 = relations_last_24hr(lines)
-
+    rels_last_24, total_last_24 = relations_last_24hr(lines, last_log_date)
 
     ##### Write status file #####
 
@@ -392,5 +390,5 @@ def parse(args):
 
 
 if __name__ == "__main__":
-    args = get_args()
+    args = 0 #get_args()
     parse(args)

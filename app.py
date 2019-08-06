@@ -32,7 +32,7 @@ def Index(number="2330L.c207"):
     data = GetData(number + ".status")
     (host_stats, client_stats, host_records,
      other_stats, eta_logs_sample, rels_last_24) = data
-    mtime = other_stats
+    mtime, = other_stats
 
     RELATION_GOAL = 2.7e9
 
@@ -99,7 +99,7 @@ def Index(number="2330L.c207"):
         client_stats=client_stats,
         active_clients=active_clients,
 
-        random_shuf=random_shuf,
+        eta_logs_sample=eta_logs_sample,
 
         eta=newest_eta,
         last_update=last_update,
