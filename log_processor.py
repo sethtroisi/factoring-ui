@@ -28,21 +28,11 @@ from operator import itemgetter
 
 import numpy as np
 
-
-RELATIONS_GOAL = 2.7e9
-
 RELATIONS_PTN = re.compile("Found ([0-9]*) relations in.*/([0-9_Lc.]*\.[0-9]{5,12}-[0-9]{5,12})")
 STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
-#NUMBER_NAME = "13_945"
-NUMBER_NAME = "2330L.c207"
-
-SQL_FILE = NUMBER_NAME + ".db"
-LOG_FILE = NUMBER_NAME + ".log"
-
-STATUS_FILE = NUMBER_NAME + ".status"
-GRAPH_FILE  = NUMBER_NAME + ".progress.png"
-PER_DAY_GRAPH_FILE  = NUMBER_NAME + ".daily_r.png"
+# Use 2000-2099 to validate this starts with a
+TOTAL_RELATIONS_PTN = re.compile('(20[1-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)')
 
 
 def get_args():
@@ -56,9 +46,9 @@ def get_args():
         help="Name of this factoring effort (e.g. 2330L or RSA120)")
     parser.add_argument('-g', '--goal', required=True, type=float,
         help="should match tasks.sieve.rels_wanted")
-    parser.add_argument('-s', '--sql_file', required=True,
+    parser.add_argument('-s', '--sql_path', required=True,
         help="path to sql database created by cado-nfs.py")
-    parser.add_argument('-l', '--log_file', required=True,
+    parser.add_argument('-l', '--log_path', required=True,
         help="path to log file created by cado-nfs.py")
 
     args = parser.parse_args()
@@ -66,44 +56,53 @@ def get_args():
 
 
 def parse_log_time(log_time):
+    # TODO allow this format to be passed in args.
     return datetime.datetime.strptime(log_time, "%Y-%m-%d %H:%M:%S,%f")
 
 
-def host_name(client):
+def get_host_name(client):
     if not client:
         return "<EMPTY>"
-    if NUMBER_NAME == "2330L.c207":
-        client = re.sub(r'\.[0-9a-f]{7,8}$', '', client)
-        client = re.sub('vebis.*', 'vebis<X>', client)
-        client = re.sub('lukerichards-.*', 'lukerichards-<COMP>', client)
-        for lsub in ('lrichards-pre2core', 'instance-1', 'localhost'):
-            client = client.replace(lsub, 'lukerichards-<COMP>')
-        if client.startswith(("math", "birch", "icebear-vm")):
-            return re.sub(r"[0-9]+", "<X>", client)
-        if client.startswith("localhost"):
-            return "localhost++"
 
-    return client.split(".")[0]
+    client = re.sub(r'\.[0-9a-f]{7,8}$', '', client)
+    client = re.sub(r'\.[0-9]+$', '<X>', client)
+
+    # TODO pass this in args, somehow
+
+    client = re.sub('lukerichards-.*', 'lukerichards-<X>', client)
+    for lsub in ('lrichards-pre2core', 'instance-1'):
+        client = client.replace(lsub, 'lukerichards-<X>')
+
+    if client.startswith(("math", "birch", "icebear-vm", "vebis")):
+        return re.sub(r"[0-9]+$", "<X>", client)
+
+    if client.startswith("sm07838d"):
+        return "sm07838d"
+
+    if client.startswith("localhost"):
+        return "localhost"
+
+    return client
 
 
-def get_client_work():
-    with sqlite3.connect(SQL_FILE) as db:
+def get_client_work(sql_path):
+    with sqlite3.connect(sql_path) as db:
         # About 40 workunits have status = 7????
         cur = db.execute("select wuid, resultclient from workunits")
         wuid = {wuid.replace("_sieving_", "."): value for wuid, value in cur.fetchall()}
 
     print (f"{len(wuid)} workloads, {min(wuid)} to {max(wuid)}")
-    client_work = Counter(map(host_name, wuid.values()))
-    for host, wus in client_work.most_common():
-        print ("\t{:20} x{} workuints".format(host, wus))
+    client_work = Counter(map(get_host_name, wuid.values()))
+    for name, wus in client_work.most_common():
+        print ("\t{:20} x{} workuints".format(name, wus))
     print ()
 
 
     clients = sorted(set(v for v in wuid.values() if v is not None))
-    hosts = Counter(map(host_name, clients))
+    hosts = Counter(map(get_host_name, clients))
     print ("{} clients, {} hosts".format(len(clients), len(hosts)))
-    for host, count in hosts.most_common():
-        print ("\t{:20} x{} clients (over the run)".format(host, count))
+    for name, count in hosts.most_common():
+        print ("\t{:20} x{} clients (over the run)".format(name, count))
     print ()
     return wuid, client_work
 
@@ -125,7 +124,7 @@ def get_stat_lines(lines):
                 else:
                     print ("Didn't find stats:", lines[i-2:i])
             else:
-                print ("Didn't find Newly arrived stats?")
+                print ("Didn't find Newly arrived stats:", wu)
             log_time = " ".join(line.split(" ")[1:3])
 
             stat_lines.append((log_time, wu, relations, total_cpu_seconds))
@@ -146,7 +145,7 @@ def get_last_log_date(lines):
 def sub_sample(items, max_count):
     """Sample at most max_count elements from items."""
     # random.sample is unhappy with count > len(items)
-    count = min(len(items) - 2, max_count)
+    count = min(len(items), max_count)
     indexes = sorted(random.sample(range(len(items)), count))
     return [items[i] for i in indexes]
 
@@ -159,50 +158,53 @@ def sub_sample_with_endpoints(items, max_count):
     return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
 
-def get_host_stats(client_work, wuid, stat_lines, one_day_ago):
+def get_stats(client_work, wuid, stat_lines, one_day_ago):
     # wu, relations, cpu_s, last_log, rels_last_24
+    client_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
     host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
 
     # badges
     # first, last
     # min_relations, max_relations
     # min_cpu_seconds, max_cpu_seconds
-    host_records = {}
+    client_records = {}
 
     for log_time, wu, relations, total_cpu_seconds in stat_lines:
         if not wu in wuid:
             print ("wuid not found", wu, len(wuid))
             continue
 
-        host_name_full = wuid[wu]
-        host_name_short = host_name(wuid[wu])
+        client_name = wuid[wu]
+        c_stats = client_stats[client_name]
 
-        # Short stats under both short and full name
-        for host in set([host_name_full, host_name_short]):
-            host_stat = host_stats[host]
-            host_stat[0] += 1
-            host_stat[1] += relations
-            host_stat[2] += total_cpu_seconds
-            host_stat[3] = max(host_stat[3], log_time) if host_stat[3] else log_time
-            host_stat[4] += relations if parse_log_time(log_time) > one_day_ago else 0
+        host_name = get_host_name(client_name)
+        h_stats = host_stats[host_name]
 
-            if host not in host_records:
-                host_records[host] = [
+        # Store stats under both client and aggregated host name
+        for name, stats in [(client_name, c_stats), (host_name, h_stats)]:
+            stats[0] += 1
+            stats[1] += relations
+            stats[2] += total_cpu_seconds
+            stats[3] = max(stats[3], log_time) if stats[3] else log_time
+            stats[4] += relations if parse_log_time(log_time) > one_day_ago else 0
+
+            if name not in client_records:
+                client_records[name] = [
                     [],
                     log_time, log_time,
                     (relations, wu), (relations, wu),
                     total_cpu_seconds, total_cpu_seconds
                 ]
             else:
-                host_record = host_records[host]
-                host_record[1] = min(host_record[1], log_time) if host_record[1] else log_time
-                host_record[2] = max(host_record[2], log_time) if host_record[2] else log_time
+                record = client_records[name]
+                record[1] = min(record[1], log_time) if record[1] else log_time
+                record[2] = max(record[2], log_time) if record[2] else log_time
 
-                host_record[3] = min(host_record[3], (relations, wu))
-                host_record[4] = max(host_record[4], (relations, wu))
+                record[3] = min(record[3], (relations, wu))
+                record[4] = max(record[4], (relations, wu))
 
-                host_record[5] = min(host_record[5], total_cpu_seconds)
-                host_record[6] = max(host_record[6], total_cpu_seconds)
+                record[5] = min(record[5], total_cpu_seconds)
+                record[6] = max(record[6], total_cpu_seconds)
 
     wu_relations = sorted(map(itemgetter(2), stat_lines))
     max_relations = wu_relations[-1]
@@ -212,38 +214,42 @@ def get_host_stats(client_work, wuid, stat_lines, one_day_ago):
     print (f"{unlucky_relations:.1f}, {lucky_relations:.1f} [un]lucky relations")
     print ()
 
-    for host, host_record in host_records.items():
-        if host_record[3][0] <= unlucky_relations:
-            host_record[0].append(("unlucky", host_record[3][0], host_record[3][1]))
+    joined_stats = dict(client_stats)
+    joined_stats.update(host_stats)
 
-        if host_record[4][0] >= lucky_relations:
-            host_record[0].append(("lucky", host_record[4][0], host_record[4][1]))
+    for name, record in client_records.items():
+        if record[3][0] <= unlucky_relations:
+            record[0].append(("unlucky", record[3][0], record[3][1]))
 
-        time_delta = parse_log_time(host_record[2]) - parse_log_time(host_record[1])
+        if record[4][0] >= lucky_relations:
+            record[0].append(("lucky", record[4][0], record[4][1]))
+
+        time_delta = parse_log_time(record[2]) - parse_log_time(record[1])
         if time_delta.days > 7:
             weeks = time_delta.total_seconds() / (7 * 24 * 3600)
-            host_record[0].append((
+            record[0].append((
                 "weeks",
                 int(time_delta.days) // 7,
                 "{:.2f} Weeks of workunits".format(weeks),
             ))
 
-        total_cpu_seconds = host_stats[host][2]
+        total_cpu_seconds = joined_stats[name][2]
+
         cpu_year = total_cpu_seconds / (365 * 24 * 3600)
         if cpu_year >= 1:
-            host_record[0].append((
+            record[0].append((
                 "CPU-years",
                 int(cpu_year),
                 "{:.2f} CPU years!".format(cpu_year),
             ))
 
-    return host_stats, host_records
+    return dict(client_stats), dict(host_stats), client_records
 
 
 def relations_last_24hr(log_lines, last_log_date):
     total_found_lines = []
     for line in log_lines:
-        match = re.search('(20[12][0-9]-[\w-]* [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)', line)
+        match = TOTAL_RELATIONS_PTN.search(line)
         if match:
             datetime_raw, found_raw = match.groups()
             total_found_lines.append((
@@ -258,11 +264,12 @@ def relations_last_24hr(log_lines, last_log_date):
     i = 0
     j = 0
     while j < len(total_found_lines):
+        assert i <= j, (i, j)
         a = total_found_lines[i]
         b = total_found_lines[j]
         time_delta = b[0] - a[0]
 
-        if (time_delta).days < 0:
+        if time_delta.days < 1:
             delta = b[1] - a[1]
             total_last_24.append( (b[0], delta) )
             # increase time interval
@@ -276,7 +283,10 @@ def relations_last_24hr(log_lines, last_log_date):
     return rels_last_24, total_last_24
 
 
-def generate_charts(eta_lines, total_last_24):
+def generate_charts(args, eta_lines, total_last_24):
+    graph_file  = args.name + ".progress.png"
+    per_day_graph_file  = args.name + ".daily_r.png"
+
     from matplotlib.dates import DateFormatter
     import matplotlib
     matplotlib.use('Agg')
@@ -298,8 +308,8 @@ def generate_charts(eta_lines, total_last_24):
     ax.xaxis.set_major_formatter(DateFormatter("%m/%d"))
     ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f%%'))
 
-    plt.savefig(GRAPH_FILE)
-    print("Saved as ", GRAPH_FILE)
+    plt.savefig(graph_file)
+    print("Saved as ", graph_file)
 
     rels_24_dates = [dt for dt, _ in total_last_24]
     rels_24_count = [ct for _, ct in total_last_24]
@@ -313,16 +323,16 @@ def generate_charts(eta_lines, total_last_24):
     plt.plot(rels_24_dates, rels_24_count)
     plt.ylabel("Relations in last 24 hours")
 
-    plt.savefig(PER_DAY_GRAPH_FILE)
-    print("Saved as ", PER_DAY_GRAPH_FILE)
+    plt.savefig(per_day_graph_file)
+    print("Saved as ", per_day_graph_file)
 
 
 ##### MAIN #####
 
 def parse(args):
-    wuid, client_work = get_client_work()
+    wuid, client_work = get_client_work(args.sql_path)
 
-    with open(LOG_FILE) as f:
+    with open(args.log_path) as f:
         lines = f.readlines()
 
     print ()
@@ -340,27 +350,23 @@ def parse(args):
 
     ##### Host/Client stats (and badge variables) #####
 
-    host_stats, host_records = get_host_stats(client_work, wuid, stat_lines, one_day_ago)
-
-    client_stats = {h: v for h, v in host_stats.items() if host_name(h) != h}
-    for h in client_stats:
-        host_stats.pop(h)
+    client_stats, host_stats, client_records = get_stats(client_work, wuid, stat_lines, one_day_ago)
 
     ##### Print Host Stats #####
     found          = sum(map(itemgetter(0), host_stats.values()))
     relations_done = sum(map(itemgetter(1), host_stats.values()))
     print ("Found {} workunits, {} relations ~{:.2f}%".format(
-        found, relations_done, 100 * relations_done / RELATIONS_GOAL))
+        found, relations_done, 100 * relations_done / args.goal))
     print ()
 
     for host in sorted(host_stats.keys(), key=lambda h: -host_stats[h][2]):
         stat_wu, stat_r, stat_cpus, stat_last, _ = host_stats[host]
-        host_record = host_records[host]
+        client_record = client_records[host]
         wus = client_work[host]
         print ("\t{:20} x{:5} workunits | stats wu {:5}, relations {:8} ({:4.1f}% total) cpu-days: {:6.1f} last: {}".format(
             host, wus, stat_wu, stat_r, 100 * stat_r / relations_done, stat_cpus / 3600 / 24, stat_last))
-        print ("\t\t", ", ".join(map(str, host_record[0])))
-        print ("\t\t", ", ".join(map(str, host_record[1:])))
+        print ("\t\t", ", ".join(map(str, client_record[0])))
+        print ("\t\t", ", ".join(map(str, client_record[1:])))
     print ()
 
     assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
@@ -378,17 +384,18 @@ def parse(args):
 
     ##### Write status file #####
 
-    with open(STATUS_FILE, "w") as f:
+    status_file = args.name + ".status"
+    with open(status_file, "w") as f:
         json.dump([
-            host_stats, client_stats, host_records,
+            host_stats, client_stats, client_records,
             [time.time()],
             eta_logs_sample, rels_last_24[1],
         ], f)
 
     ##### Generate charts #####
-    generate_charts(eta_lines, total_last_24)
+    generate_charts(args, eta_lines, total_last_24)
 
 
 if __name__ == "__main__":
-    args = 0 #get_args()
+    args = get_args()
     parse(args)

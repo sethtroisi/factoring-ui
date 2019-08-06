@@ -25,8 +25,9 @@ pip install -r requirements.txt
 
 ### TODO cleanups
 
-* [ ] Remove constants from logs_processor.py
-  * [ ] Config for rel_goal, name, host regexes...
+* [1/2] Remove constants from logs_processor.py
+  * [x] Config via argparse
+  * [ ] Config for host regexes...
 * [ ] Read SQL db from cmdline
 * [ ] Test with local run
   * [ ] Add command example(s)

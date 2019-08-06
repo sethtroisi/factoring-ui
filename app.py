@@ -30,7 +30,7 @@ def log_date_str_to_datetime(log_date_str):
 @app.route("/<number>/")
 def Index(number="2330L.c207"):
     data = GetData(number + ".status")
-    (host_stats, client_stats, host_records,
+    (host_stats, client_stats, client_records,
      other_stats, eta_logs_sample, rels_last_24) = data
     mtime, = other_stats
 
@@ -71,8 +71,8 @@ def Index(number="2330L.c207"):
 
     eta_logs_sample = list(map(minimize_line, eta_logs_sample))
 
-    host_badges = {host: records[0] for host, records in host_records.items()}
-    badges = set(badge[0] for badges in host_badges.values() for badge in badges)
+    client_badges = {name: records[0] for name, records in client_records.items()}
+    badges = set(badge[0] for badges in client_badges.values() for badge in badges)
     badge_names = {
         "unlucky": "badge-danger",
         "lucky":   "badge-success",
@@ -93,7 +93,7 @@ def Index(number="2330L.c207"):
 
         host_stats=host_stats,
         active_hosts=active_hosts,
-        host_badges=host_badges,
+        client_badges=client_badges,
         badge_names=badge_names,
 
         client_stats=client_stats,

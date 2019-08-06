@@ -68,9 +68,9 @@ tbody.sub-stats tr th:first-child {
         {% endif %}
       </th>
       <td>
-        {% if name in host_badges %}
+        {% if name in client_badges %}
           <span class="badge-row">
-            {% for b, num, desc in host_badges[name] -%}
+            {% for b, num, desc in client_badges[name] -%}
               <span class="badge {{ badge_names[b] }}" data-toggle="tooltip" title="{{desc}}">
                 {{b}}
                 {%- if num -%}
