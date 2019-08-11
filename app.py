@@ -30,8 +30,8 @@ def log_date_str_to_datetime(log_date_str):
 @app.route("/<number>/")
 def Index(number="2330L.c207"):
     data = GetData(number + ".status")
-    (host_stats, client_stats, client_records,
-     other_stats, eta_logs_sample, rels_last_24) = data
+    (host_client_data, other_stats, eta_logs_sample, rels_last_24) = data
+    host_stats, client_stats, client_records, client_hosts = host_client_data
     relation_goal, mtime = other_stats
 
     newest_eta = eta_logs_sample[-1].split("as ok")[-1].strip(' ()\n')
@@ -85,17 +85,18 @@ def Index(number="2330L.c207"):
         number=number,
         goal=relation_goal,
 
-        workunits_done=workunits_done,
         relations_done=relations_done,
+        workunits_done=workunits_done,
         rels_last_24=rels_last_24,
+        active_hosts=active_hosts,
+        active_clients=active_clients,
 
         host_stats=host_stats,
-        active_hosts=active_hosts,
         client_badges=client_badges,
         badge_names=badge_names,
 
         client_stats=client_stats,
-        active_clients=active_clients,
+        client_hosts=client_hosts,
 
         eta_logs_sample=eta_logs_sample,
 

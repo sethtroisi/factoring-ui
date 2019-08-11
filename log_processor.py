@@ -412,7 +412,7 @@ def parse(args):
     status_file = args.name + ".status"
     with open(status_file, "w") as f:
         json.dump([
-            host_stats, client_stats, client_records,
+            [host_stats, client_stats, client_records, client_hosts],
             [args.goal, time.time()],
             eta_logs_sample, rels_last_24[1],
         ], f)

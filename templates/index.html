@@ -120,7 +120,7 @@ tbody.sub-stats tr th:first-child {
       {% if sub_stats %}
         <tbody class="collapse sub-stats" id="{{toggle_name}}-toggle">
         {% for host_name, host_stats in sub_stats %}
-          {% if host_name.startswith(toggle_name) %}
+          {% if client_hosts[host_name] == name %}
             {{ stats_row(host_name, "", host_stats, false, false) }}
           {% endif %}
         {% endfor %}
