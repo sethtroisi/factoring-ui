@@ -32,9 +32,7 @@ def Index(number="2330L.c207"):
     data = GetData(number + ".status")
     (host_stats, client_stats, client_records,
      other_stats, eta_logs_sample, rels_last_24) = data
-    mtime, = other_stats
-
-    RELATION_GOAL = 2.7e9
+    relation_goal, mtime = other_stats
 
     newest_eta = eta_logs_sample[-1].split("as ok")[-1].strip(' ()\n')
     last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
@@ -85,7 +83,7 @@ def Index(number="2330L.c207"):
     return render_template(
         "index.html",
         number=number,
-        goal=RELATION_GOAL,
+        goal=relation_goal,
 
         workunits_done=workunits_done,
         relations_done=relations_done,
