@@ -98,24 +98,30 @@ def parse_host_name(args, client):
 
 def get_client_work(sql_path, get_host_name):
     with sqlite3.connect(sql_path) as db:
-        # About 40 workunits have status = 7????
-        cur = db.execute("select wuid, resultclient from workunits")
-        wuid = {wuid.replace("_sieving_", "."): value for wuid, value in cur.fetchall()}
+        # TODO understand if filtereding status 6 and 7 is "correct"
+        cur = db.execute("select wuid, status, resultclient from workunits")
+        results = tuple(cur.fetchall())
 
-    print (f"{len(wuid)} workloads, {min(wuid)} to {max(wuid)}")
+        wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results
+            if status == 5}
+
+        bad_wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results
+            if status != 5}
+
+    print (f"{len(wuid)} workunits ({len(bad_wuid)} failed), {min(wuid)} to {max(wuid)}")
     client_work = Counter(map(get_host_name, wuid.values()))
     for name, wus in client_work.most_common():
-        print ("\t{:20} x{} workuints".format(name, wus))
+        print ("\t{:20} x{} workunits".format(name, wus))
     print ()
 
-
-    clients = sorted(set(v for v in wuid.values() if v is not None))
+    clients = sorted(set(wuid.values()))
     hosts = Counter(map(get_host_name, clients))
     print ("{} clients, {} hosts".format(len(clients), len(hosts)))
     for name, count in hosts.most_common():
         print ("\t{:20} x{} clients (over the run)".format(name, count))
     print ()
-    return wuid, client_work
+
+    return wuid, bad_wuid, client_work
 
 
 def get_stat_lines(lines):
@@ -169,7 +175,7 @@ def sub_sample_with_endpoints(items, max_count):
     return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
 
-def get_stats(client_work, wuid, stat_lines, one_day_ago, get_host_name):
+def get_stats(wuid, bad_wuid, stat_lines, one_day_ago, client_hosts):
     # wu, relations, cpu_s, last_log, rels_last_24
     client_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
     host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
@@ -181,14 +187,15 @@ def get_stats(client_work, wuid, stat_lines, one_day_ago, get_host_name):
     client_records = {}
 
     for log_time, wu, relations, total_cpu_seconds in stat_lines:
-        if not wu in wuid:
-            print ("wuid not found", wu, len(wuid))
+        if wu not in wuid:
+            if wu not in bad_wuid:
+                print ("wuid not found", wu, len(wuid))
             continue
 
         client_name = wuid[wu]
         c_stats = client_stats[client_name]
 
-        host_name = get_host_name(client_name)
+        host_name = client_hosts[client_name]
         h_stats = host_stats[host_name]
 
         # Store stats under both client and aggregated host name
@@ -343,19 +350,21 @@ def generate_charts(args, eta_lines, total_last_24):
 def parse(args):
     get_host_name = get_get_host_name(args)
 
-    wuid, client_work = get_client_work(args.sql_path, get_host_name)
+    wuid, bad_wuid, client_work = get_client_work(args.sql_path, get_host_name)
+    client_names = set(wuid.values())
+    client_hosts = {client: get_host_name(client) for client in client_names}
 
     with open(args.log_path) as f:
-        lines = f.readlines()
+        log_lines = f.readlines()
 
     print ()
-    print (len(lines), "log lines")
+    print (len(log_lines), "log lines")
 
-    stat_lines = get_stat_lines(lines)
+    stat_lines = get_stat_lines(log_lines)
     print (len(stat_lines), "Stat lines")
     print ()
 
-    last_log_date = get_last_log_date(lines)
+    last_log_date = get_last_log_date(log_lines)
     print ("Last log date:", last_log_date)
     print ()
 
@@ -364,7 +373,7 @@ def parse(args):
     ##### Host/Client stats (and badge variables) #####
 
     client_stats, host_stats, client_records = get_stats(
-        client_work, wuid, stat_lines, one_day_ago, get_host_name)
+        wuid, bad_wuid, stat_lines, one_day_ago, client_hosts)
 
     ##### Print Host Stats #####
     found          = sum(map(itemgetter(0), host_stats.values()))
@@ -390,13 +399,13 @@ def parse(args):
 
     ##### Eta logs #####
 
-    eta_lines = [line for line in lines if '=> ETA' in line]
+    eta_lines = [line for line in log_lines if '=> ETA' in line]
     print (f"{len(eta_lines)} ETAs: {eta_lines[-1]}\n")
     eta_logs_sample = sub_sample_with_endpoints(eta_lines, 100)
 
     ##### Relations per 24 hours #####
 
-    rels_last_24, total_last_24 = relations_last_24hr(lines, last_log_date)
+    rels_last_24, total_last_24 = relations_last_24hr(log_lines, last_log_date)
 
     ##### Write status file #####
 
