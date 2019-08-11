@@ -51,6 +51,13 @@ def get_args():
     parser.add_argument('-l', '--log_path', required=True,
         help="path to log file created by cado-nfs.py")
 
+    parser.add_argument('--client-substitutions', action='append', default=[],
+        help="for names in form A:B substitue A => B")
+    parser.add_argument('--client-joined', action='append', default=[],
+        help="for names in form A:B:C:D join B,C,D under host A")
+    parser.add_argument('--host-startswith', default="",
+        help="comma seperated list, any client that starts with A is part of host A")
+
     args = parser.parse_args()
     return args
 
@@ -60,32 +67,36 @@ def parse_log_time(log_time):
     return datetime.datetime.strptime(log_time, "%Y-%m-%d %H:%M:%S,%f")
 
 
-def get_host_name(client):
+def get_get_host_name(args):
+    '''curried version of get_host_name'''
+    return lambda client: parse_host_name(args, client)
+
+
+def parse_host_name(args, client):
     if not client:
         return "<EMPTY>"
 
     client = re.sub(r'\.[0-9a-f]{7,8}$', '', client)
     client = re.sub(r'\.[0-9]+$', '<X>', client)
 
-    # TODO pass this in args, somehow
+    for pairs in args.client_substitutions:
+        # NOTE: please don't have clients with : in their names.
+        A, B = pairs.split(":")
+        client = re.sub(A, B, client)
 
-    client = re.sub('lukerichards-.*', 'lukerichards-<X>', client)
-    for lsub in ('lrichards-pre2core', 'instance-1'):
-        client = client.replace(lsub, 'lukerichards-<X>')
+    for joins in args.client_joined:
+        name, *others = joins.split(":")
+        if client.startswith(tuple(others)):
+            return name
 
-    if client.startswith(("math", "birch", "icebear-vm", "vebis")):
-        return re.sub(r"[0-9]+$", "<X>", client)
-
-    if client.startswith("sm07838d"):
-        return "sm07838d"
-
-    if client.startswith("localhost"):
-        return "localhost"
+    for host in args.host_startswith.split(","):
+        if client.startswith(host):
+            return host
 
     return client
 
 
-def get_client_work(sql_path):
+def get_client_work(sql_path, get_host_name):
     with sqlite3.connect(sql_path) as db:
         # About 40 workunits have status = 7????
         cur = db.execute("select wuid, resultclient from workunits")
@@ -158,7 +169,7 @@ def sub_sample_with_endpoints(items, max_count):
     return [items[0]] + sub_sample(items[1:-1], max_count - 2) + [items[-1]]
 
 
-def get_stats(client_work, wuid, stat_lines, one_day_ago):
+def get_stats(client_work, wuid, stat_lines, one_day_ago, get_host_name):
     # wu, relations, cpu_s, last_log, rels_last_24
     client_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
     host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
@@ -330,7 +341,9 @@ def generate_charts(args, eta_lines, total_last_24):
 ##### MAIN #####
 
 def parse(args):
-    wuid, client_work = get_client_work(args.sql_path)
+    get_host_name = get_get_host_name(args)
+
+    wuid, client_work = get_client_work(args.sql_path, get_host_name)
 
     with open(args.log_path) as f:
         lines = f.readlines()
@@ -350,7 +363,8 @@ def parse(args):
 
     ##### Host/Client stats (and badge variables) #####
 
-    client_stats, host_stats, client_records = get_stats(client_work, wuid, stat_lines, one_day_ago)
+    client_stats, host_stats, client_records = get_stats(
+        client_work, wuid, stat_lines, one_day_ago, get_host_name)
 
     ##### Print Host Stats #####
     found          = sum(map(itemgetter(0), host_stats.values()))
@@ -369,6 +383,8 @@ def parse(args):
         print ("\t\t", ", ".join(map(str, client_record[1:])))
     print ()
 
+
+    # TODO store client => host mapping
     assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
 
 
