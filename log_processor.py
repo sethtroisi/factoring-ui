@@ -58,6 +58,9 @@ def get_args():
     parser.add_argument('--host-startswith', default="",
         help="comma seperated list, any client that starts with A is part of host A")
 
+    parser.add_argument('--min-workunits', default=0, type=int,
+        help="Minimum workunits to include in host list")
+
     args = parser.parse_args()
     return args
 
@@ -392,9 +395,19 @@ def parse(args):
         print ("\t\t", ", ".join(map(str, client_record[1:])))
     print ()
 
-
-    # TODO store client => host mapping
+    # Verify that we end up with stats on every client that had workunits (from db).
     assert host_stats.keys() == client_work.keys(), (host_stats.keys(), client_work.keys())
+
+    # Remove any client / hosts with less than minimum workunits
+    trimmed = 0
+    for stats in (client_stats, host_stats):
+        # Need a copy of keys as dictionary will change during iteration.
+        for key in list(stats.keys()):
+            if stats[key][0] < args.min_workunits:
+                trimmed += 1
+                stats.pop(key)
+    if trimmed > 0:
+        print(f"\tRemoved {trimmed} clients/hosts with < {args.min_workunits} workunits")
 
 
     ##### Eta logs #####
