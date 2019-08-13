@@ -15,7 +15,7 @@ work but have not been tested.
 ### Packages
 
 Some extra packages are required (Flask, Flask-Cache, matplotlib, seaborn) see
-requirements.txt for a full list.
+[requirements.txt](requirements.txt) for a full list.
 
 These can be installed with
 
@@ -39,6 +39,7 @@ cd "<PATH>"
 
 number="2330L.c207"
 
+# If files aren't on the same computer
 sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}" .
 
 ./log_processor.py -n "$number" -g 3e9 --output "$number" -s "$number.db" --l "$number.log"
@@ -47,13 +48,14 @@ sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}
 
 ### TODO cleanups
 
-* [1/2] Remove constants from logs_processor.py
+* [2/2] Remove constants from logs_processor.py
   * [x] Config via argparse
-  * [ ] Config for host regexes...
+  * [x] Config for host regexes...
 * [ ] Test with local run
-  * [ ] Add command example(s)
+  * [x] Add command example(s)
   * [x] Add crontab example(s)
 * [ ] Remove numpy.percentile
+* [ ] Support config from file in parameter format
 
 ### Future Features
 
