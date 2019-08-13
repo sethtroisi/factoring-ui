@@ -131,13 +131,11 @@ tbody.sub-stats tr th:first-child {
 {%- endmacro %}
 
 <body>
-  <div id='status'>This is iteration 6.test, Let me know in the thread if you want anything</div>
-
   <div id='main-col' class="container">
     <div class="text-center">
       <h1 class="text-center">Factoring Progress for {{number}}</h1>
       <h3>{{ eta }}</h3>
-      <a href="https://www.mersenneforum.org/showthread.php?t=24292">Planning & Coordination for 2,2330L</a>
+      {{banner | safe}}
     </div>
     <br>
 

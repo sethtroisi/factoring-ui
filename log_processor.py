@@ -44,6 +44,9 @@ def get_args():
     # TODO find a better way to pass config settings
     parser.add_argument('-n', '--name', required=True,
         help="Name of this factoring effort (e.g. 2330L or RSA120)")
+    parser.add_argument('--banner', default='',
+        help="html banner line to show below ETA status")
+
     parser.add_argument('-g', '--goal', required=True, type=float,
         help="should match tasks.sieve.rels_wanted")
     parser.add_argument('-s', '--sql_path', required=True,
@@ -426,7 +429,7 @@ def parse(args):
     with open(status_file, "w") as f:
         json.dump([
             [host_stats, client_stats, client_records, client_hosts],
-            [args.goal, time.time()],
+            [time.time(), args.goal, args.banner],
             eta_logs_sample, rels_last_24[1],
         ], f)
 
