@@ -64,7 +64,7 @@ sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}
 
 ### Future Features
 
-* [ ] Support MySQL (and db uri)
+* [x] Support MySQL (and db uri)
 * [ ] Display information about
   * [ ] Paramenters (minus paths)
   * [ ] Failed / timedout tasks

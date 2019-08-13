@@ -20,7 +20,6 @@ import datetime
 import json
 import random
 import re
-import sqlite3
 import time
 
 from collections import Counter, defaultdict
@@ -101,17 +100,50 @@ def parse_host_name(args, client):
     return client
 
 
-def get_client_work(sql_path, get_host_name):
-    with sqlite3.connect(sql_path) as db:
-        # TODO understand if filtereding status 6 and 7 is "correct"
-        cur = db.execute("select wuid, status, resultclient from workunits")
+def get_db_data(sql_path):
+    SQLITE3_URI = "db:sqlite3:"
+    MYSQL_URI = "db:mysql:"
+
+    SQL_QUERY = "select wuid, status, resultclient from workunits"
+
+    if sql_path.startswith(MYSQL_URI):
+        import mysql
+        import mysql.connector
+        import urllib.parse
+
+        uri = sql_path.replace(MYSQL_URI, "mysql:")
+        parsed = urllib.parse.urlparse(uri)
+
+        config = {
+            'username': parsed.username,
+            'password': parsed.password,
+            'host':     parsed.hostname,
+            'port':     parsed.port,
+            'database': parsed.path.strip('/'),
+        }
+        config = {k: v for k,v in config.items() if v is not None}
+
+        db = mysql.connector.connect(**config)
+        cur = db.cursor()
+        cur.execute(SQL_QUERY)
         results = tuple(cur.fetchall())
+        cur.close()
+        db.close()
+        return results
 
-        wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results
-            if status == 5}
+    import sqlite3
+    # Assume local sqlite3 db.
+    uri = sql_path.replace(SQLITE3_URI, "")
+    print(repr(uri))
+    with sqlite3.connect(uri) as db:
+        cur = db.execute(SQL_QUERY)
+        return tuple(cur.fetchall())
 
-        bad_wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results
-            if status != 5}
+
+def get_client_work(sql_path, get_host_name):
+    results = get_db_data(sql_path)
+    wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results if status == 5}
+    bad_wuid = {wuid.replace("_sieving_", "."): value for wuid, status, value in results if status != 5}
 
     print (f"{len(wuid)} workunits ({len(bad_wuid)} failed), {min(wuid)} to {max(wuid)}")
     client_work = Counter(map(get_host_name, wuid.values()))
@@ -403,7 +435,6 @@ def parse(args):
     # Remove any client / hosts with less than minimum workunits
     trimmed = 0
     for stats in (client_stats, host_stats):
-        # Need a copy of keys as dictionary will change during iteration.
         for key in list(stats.keys()):
             if stats[key][0] < args.min_workunits:
                 trimmed += 1

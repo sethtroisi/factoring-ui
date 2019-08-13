@@ -3,3 +3,5 @@ flask-caching
 numpy
 matplotlib
 seaborn
+mysql-connector
+sqlite3
