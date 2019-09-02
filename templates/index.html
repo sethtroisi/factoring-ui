@@ -83,7 +83,7 @@ tbody.sub-stats tr th:first-child {
       </td>
       <td>{{ stats[0] }}</td>
       {% if is_first %}
-        <td>{{ "{:,}".format(stats[1]) }} ({{ "{:.2f}".format(100 * stats[1] / 2700000000) }}%)</td>
+        <td>{{ "{:,}".format(stats[1]) }} ({{ "{:.2f}".format(100 * stats[1] / goal) }}%)</td>
         <td>{{ (stats[2] / 3600 / 24 / 365)|round(3) }} years</td>
       {% else %}
         <td>{{ "{:,}".format(stats[1]) }} ({{ (100 * stats[1] / relations_done) |round(1) }}% total)</td>
