@@ -1,8 +1,8 @@
 Factoring UI for cado-nfs
 =========================
 
-This file describes how to use logs_processor and flask to run a website showing
-sieving progress.
+This file describes how to use log_processor.py and flask to run a website
+showing sieving progress.
 
 See [factoring.cloudygo.com](http://factoring.cloudygo.com) for an example of
 what this can look like.
@@ -26,7 +26,12 @@ pip install -r requirements.txt
 ### Example usage
 
 ```bash
-./log_processor.py -n 2330L.c207 -g 3e9 --output 2330L.c207 -s 2330L.c207.db --l 2330L.c207.log
+./log_processor.py -n 2330L.c207 -g 3e9 -s 2330L.c207.db -l 2330L.c207.log
+
+or
+
+./log_processor.py -n X -g 3e6 -s "db:mysql://testuser:testpasswd@localhost/db_name" -l X.log
+
 ```
 
 ```bash
@@ -42,7 +47,7 @@ number="2330L.c207"
 # If files aren't on the same computer
 sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}" .
 
-./log_processor.py -n "$number" -g 3e9 --output "$number" -s "$number.db" --l "$number.log"
+./log_processor.py -n "$number" -g 3e9 --output "$number" -s "$number.db" -l "$number.log"
 ```
 
 

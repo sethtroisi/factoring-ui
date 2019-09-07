@@ -37,11 +37,10 @@ TOTAL_RELATIONS_PTN = re.compile('(20[1-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]
 
 def get_args():
     parser = argparse.ArgumentParser(description="log processor for factoring ui of CADO-NFS")
-    parser.add_argument('-o', '--output', required=True,
-        type=argparse.FileType('w'),
-        help="output file path prefix")
 
     # TODO find a better way to pass config settings
+
+    # Used to determine <name>.status and <name>.progress.png filenames.
     parser.add_argument('-n', '--name', required=True,
         help="Name of this factoring effort (e.g. 2330L or RSA120)")
     parser.add_argument('--banner', default='',
