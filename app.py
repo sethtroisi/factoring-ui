@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 import json
 import os
-import re
 import time
 
 from flask import Flask
@@ -17,19 +16,26 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 
 @cache.cached(timeout=5 * 60)
-def GetData(factor):
-    # TODO handle file not existing
+def get_data(factor):
     status_path = os.path.join(app.root_path, factor)
-    with open(status_path) as f:
-        return json.load(f)
+    if not os.path.exists(status_path):
+        return None
+
+    with open(status_path) as status_file:
+        return json.load(status_file)
+
 
 def log_date_str_to_datetime(log_date_str):
     return datetime.strptime(log_date_str, "%Y-%m-%d %H:%M:%S,%f")
 
+# TODO: Accept a default number as an arg.
 @app.route("/")
 @app.route("/<number>/")
-def Index(number="2330L.c207"):
-    data = GetData(number + ".status")
+def index(number="2330L.c207"):
+    data = get_data(number + ".status")
+    if not data:
+        return 'Not found', 404
+
     (host_client_data, other_stats, eta_logs_sample, rels_last_24) = data
     host_stats, client_stats, client_records, client_hosts = host_client_data
     mtime, relation_goal, banner = other_stats
@@ -49,15 +55,17 @@ def Index(number="2330L.c207"):
     total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu, rels_last_24))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
     client_stats = sorted(
-		client_stats.items(),
-		key=lambda p: (p[0].split(".")[0], p[1][3]),
-		reverse=True)
+        client_stats.items(),
+        key=lambda p: (p[0].split(".")[0], p[1][3]),
+        reverse=True)
     # Filter clients with only one WU.
-    client_stats = [(c,v) for c,v in client_stats if v[0] > 1]
+    client_stats = [(c, v) for c, v in client_stats if v[0] > 1]
 
+    # Adjusted if workunits take longer than this on average.
+    kinda_recent = datetime.now() - timedelta(hours=4)
     def active_nodes(named_stats):
         return sum(1 for name, stats in named_stats if
-            log_date_str_to_datetime(stats[3]) + timedelta(hours=2) > datetime.now())
+                   log_date_str_to_datetime(stats[3]) > kinda_recent)
 
     active_hosts = active_nodes(host_stats)
     active_clients = active_nodes(client_stats)
@@ -72,13 +80,13 @@ def Index(number="2330L.c207"):
     client_badges = {name: records[0] for name, records in client_records.items()}
     badges = set(badge[0] for badges in client_badges.values() for badge in badges)
     badge_names = {
-        "unlucky": "badge-danger",
-        "lucky":   "badge-success",
+        "unlucky":   "badge-danger",
+        "lucky":     "badge-success",
         "CPU-years": "badge-secondary",
-        "weeks":   "badge-dark",
+        "weeks":     "badge-dark",
     }
     if badges > badge_names.keys():
-        print ("No badge type for:", badges - badge_names.keys())
+        print("No badge type for:", badges - badge_names.keys())
 
     return render_template(
         "index.html",
@@ -110,7 +118,7 @@ def Index(number="2330L.c207"):
 
 
 @app.route("/favicon.ico")
-def Favicon():
+def favicon():
     return ""
 
 
@@ -122,10 +130,5 @@ def factor_progress(name, graph):
 
 
 if __name__ == "__main__":
-    app.run(
-        #host='0.0.0.0',
-        host = '::',
-        port = 5070,
-        #debug = False,
-        debug = True,
-        threaded = True)
+    # TODO provide example here and in README
+    app.run(debug=False, threaded=True)
