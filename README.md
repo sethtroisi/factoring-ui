@@ -7,12 +7,16 @@ showing sieving progress.
 See [factoring.cloudygo.com](http://factoring.cloudygo.com) for an example of
 what this can look like.
 
-### Python 3
+See [Log Processing](#log-processing) and [Frontend](#frontend) on how to get
+started
 
+### Prerequisites
+
+##### Python 3
 Python 3, version 3.7 or greater, is suggested. Older versions of Python 3 may
 work but have not been tested.
 
-### Packages
+##### Packages
 
 Some extra packages are required (Flask, Flask-Cache, matplotlib, seaborn) see
 [requirements.txt](requirements.txt) for a full list.
@@ -23,16 +27,21 @@ These can be installed with
 pip install -r requirements.txt
 ```
 
-### Example usage
+### Log Processing
+
+The first step is to anaylze the cado-nfs database and logs.
+
+`log_processor.py` needs access to the log file (via `-l` or `--log_path`)
+and the database file (via `-s` or `--sql_path`) see `log_processor.py -h`
+for help on understanding options and `--sql_path` format.
 
 ```bash
 ./log_processor.py -n 2330L.c207 -g 3e9 -s 2330L.c207.db -l 2330L.c207.log
-
-or
-
 ./log_processor.py -n X -g 3e6 -s "db:mysql://testuser:testpasswd@localhost/db_name" -l X.log
 
 ```
+
+This can be automated with cron
 
 ```bash
 $ crontab -l
@@ -50,17 +59,25 @@ sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}
 ./log_processor.py -n "$number" -g 3e9 --output "$number" -s "$number.db" -l "$number.log"
 ```
 
+# Frontend
 
-### TODO cleanups
+The Flask build-in server is great to get started.
+Later when you want to deploy in production check out Flask's documentation
+on [Deployment Options](https://flask.palletsprojects.com/en/1.1.x/deploying/)
 
-* [2/2] Remove constants from logs_processor.py
-  * [x] Config via argparse
-  * [x] Config for host regexes...
-* [ ] Test with local run
-  * [x] Add command example(s)
-  * [x] Add crontab example(s)
-* [ ] Remove numpy.percentile
-* [ ] Support config from file in parameter format
+```bash
+FLASK_APP=app.py flask run --port 5100
+
+# To expose the site on more than localhost
+FLASK_APP=app.py flask run --port 5100 --host 0.0.0.0
+
+# To run in debug mode for local developement
+FLASK_DEBUG=1 FLASK_APP=app.py flask run --port 5100
+```
+
+Congrats! the [factoring-ui](screenshots/main-page.png) should be running on
+[localhost:5100](http://localhost:5100)
+
 
 ### Future Features
 
@@ -69,3 +86,5 @@ sshpass -p "<PASSWORD>" rsync -v "<USER>@<REMOTE_HOST>:<PATH>/${number}.{db,log}
   * [ ] Paramenters (minus paths)
   * [ ] Failed / timedout tasks
   * [ ] Polyselect
+* [ ] Remove numpy.percentile
+* [ ] Support config from file in parameter format

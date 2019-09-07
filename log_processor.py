@@ -35,7 +35,10 @@ TOTAL_RELATIONS_PTN = re.compile('(20[1-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="log processor for factoring ui of CADO-NFS")
+    parser = argparse.ArgumentParser(
+        description="log processor for factoring ui of CADO-NFS",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
 
     # TODO find a better way to pass config settings
 
@@ -47,10 +50,17 @@ def get_args():
 
     parser.add_argument('-g', '--goal', required=True, type=float,
         help="should match tasks.sieve.rels_wanted")
-    parser.add_argument('-s', '--sql_path', required=True,
-        help="path to sql database created by cado-nfs.py")
     parser.add_argument('-l', '--log_path', required=True,
         help="path to log file created by cado-nfs.py")
+    parser.add_argument('-s', '--sql_path', required=True,
+        help=("path to SQL database created by cado-nfs.py\n"
+              "several formats are accepted:\n"
+              " * <PATH> (sqlite3 only)\n"
+              " * db:sqlite3:<PATH>\n"
+              " * db:mysql:<PATH>\n"
+              " * db:mysql://<USER>:<PASSWORD>@<HOST>/<DB>\n"
+              "NOTE: MySQL is not well tested, please file a bug report\n"
+              "if you experience difficulty configuring"))
 
     parser.add_argument('--client-substitutions', action='append', default=[],
         help="for names in form A:B substitue A => B")

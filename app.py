@@ -130,5 +130,4 @@ def factor_progress(name, graph):
 
 
 if __name__ == "__main__":
-    # TODO provide example here and in README
-    app.run(debug=False, threaded=True)
+    app.run(threaded=True)
