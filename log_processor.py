@@ -115,13 +115,14 @@ def get_db_data(sql_path):
         parsed = urllib.parse.urlparse(uri)
 
         config = {
-            'username': parsed.username,
+            'user':     parsed.username,
             'password': parsed.password,
             'host':     parsed.hostname,
             'port':     parsed.port,
             'database': parsed.path.strip('/'),
         }
         config = {k: v for k,v in config.items() if v is not None}
+        print("Config:", config)
 
         db = mysql.connector.connect(**config)
         cur = db.cursor()
