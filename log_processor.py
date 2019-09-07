@@ -3,12 +3,18 @@
 # Look for lines like
 PID22558 2019-06-01 22:37:01,063 Info:HTTP server: 123.123.123.123 Sending workunit 2330L.c207_sieving_13849000-13850000 to client <NAME>.<HASH>
 
-# Later you get this line (sadly no mention of work unit here.
+# Later you get this line (sadly no mention of work unit here).
+
 PID22558 2019-06-02 14:44:22,699 Debug:HTTP server: 123.123.123.123 "POST /cgi-bin/upload.py HTTP/1.1" 200 -
+
 # And within a ~1 second (upload time)
+
 PID22558 2019-06-02 14:44:23,919 Debug:Lattice Sieving: stderr is: b"# redoing q=14709001, rho=9007715 because 1s buckets are full\n# Fullest level-1s bucket #2094, wrote 3317/3232\n# Average J=22434 for 68 special-q's, max bucket fill -bkmult 1,1s:1.07761\n# Discarded 0 special-q's out of 68 pushed\n# Wasted cpu time due to 1 bkmult adjustments: 48.37\n# Total cpu time 5644.79s [norm 4.91+10.0, sieving 4599.9 (3113.2 + 225.9 + 1260.8), factor 1030.0 (677.1 + 352.9)] (not incl wasted time)\n# Total elapsed time 1502.33s, per special-q 22.0931s, per relation 0.150549s\n# PeakMemusage (MB) = 11333 \n# Total 9979 reports [0.566s/r, 146.8r/sq] in 1.5e+03 elapsed s [375.7% CPU]\n
+
 # After stderr line
+
 PID22558 2019-06-02 14:44:23,919 Debug:Lattice Sieving: Newly arrived stats: {'stats_avg_J': '22434.0 68', 'stats_max_bucket_fill': '1,1s:1.07761', 'stats_total_cpu_time': '5644.79', 'stats_total_time': '1502.33'}
+
 # Next, and Next
 PID22558 2019-06-02 14:44:23,920 Debug:Lattice Sieving: Combined stats: {'stats_avg_J': '19767.628076462464 356619', 'stats_max_bucket_fill': '1.0,1s:1.121320', 'stats_total_cpu_time': '30737474.54999989', 'stats_total_time': '8206173.819999958'}
 PID22558 2019-06-02 14:44:23,920 Info:Lattice Sieving: Found 9979 relations in '<PATH>/2330L.c207.upload/2330L.c207.14709000-14710000.xbygw_pr.gz', total is now 61549262/2700000000
@@ -30,7 +36,7 @@ import numpy as np
 RELATIONS_PTN = re.compile(r"Found ([0-9]*) relations in.*/([0-9_Lc.]*\.[0-9]{5,12}-[0-9]{5,12})")
 STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
-# Use 2000-2099 to validate this starts with a
+# Use 2000-2099 to validate this starts with a date
 TOTAL_RELATIONS_PTN = re.compile('(20[1-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)')
 
 
@@ -185,8 +191,8 @@ def get_stat_lines(lines):
             relations = int(match.group(1))
 
             # Log seems pretty consistent in this regard, and if stats aren't
-            # found a warning is printed which happens ~2 times in both
-            # factoring efforts tested.
+            # found a warning is printed which happens 2-30 times in both
+            # factoring efforts tested which is managable.
             total_cpu_seconds = 0
             if "Newly arrived stats" in lines[i - 2]:
                 cpu_seconds_match = re.search(STATS_TOTAL_PTN, lines[i - 2])
@@ -195,7 +201,7 @@ def get_stat_lines(lines):
                 else:
                     print("Didn't find stats:", lines[i - 2:i])
             else:
-                print("Didn't find Newly arrived stats:", wu)
+                print("Didn't find Newly arrived stats for ", wu)
             log_time = " ".join(line.split(" ")[1:3])
 
             stat_lines.append((log_time, wu, relations, total_cpu_seconds))
@@ -209,7 +215,7 @@ def get_last_log_date(lines):
         if parts[1].startswith('20'):
             return parse_log_time(parts[1] + " " + parts[2])
 
-    print("FAILING BACK TO NOW DATE!")
+    print("FALLING BACK TO NOW DATE!")
     return datetime.datetime.uctnow()
 
 
@@ -278,17 +284,24 @@ def get_stats(wuid, bad_wuid, stat_lines, one_day_ago, client_hosts):
                 record[5] = min(record[5], total_cpu_seconds)
                 record[6] = max(record[6], total_cpu_seconds)
 
+    joined_stats = dict(client_stats)
+    joined_stats.update(host_stats)
+
+    set_badges(stat_lines, joined_stats, client_records)
+
+    return dict(client_stats), dict(host_stats), client_records
+
+
+def set_badges(stat_lines, joined_stats, client_records):
+    '''Add badges (tuple of name and values) to client_records'''
     wu_relations = sorted(map(itemgetter(2), stat_lines))
-    # This is the only use of numpy it might be worth trying to remove it
-    # to avoid the dependency.
+    # TODO: This is the only use of numpy it might be worth removing it to
+    # avoid the dependency.
     unlucky_relations = np.percentile(wu_relations, 0.1)
     lucky_relations = np.percentile(wu_relations, 99.9)
 
     print(f"{unlucky_relations:.1f}, {lucky_relations:.1f} [un]lucky relations")
     print()
-
-    joined_stats = dict(client_stats)
-    joined_stats.update(host_stats)
 
     for name, record in client_records.items():
         if record[3][0] <= unlucky_relations:
@@ -316,8 +329,6 @@ def get_stats(wuid, bad_wuid, stat_lines, one_day_ago, client_hosts):
                 "{:.2f} CPU years!".format(cpu_year),
             ))
 
-    return dict(client_stats), dict(host_stats), client_records
-
 
 def relations_last_24hr(log_lines, last_log_date):
     total_found_lines = []
@@ -336,22 +347,21 @@ def relations_last_24hr(log_lines, last_log_date):
     # Walk forward over all total found lines keeping i pointing to the first
     # line less than 24 hours old.
     total_last_24 = []
-    i = 0
-    j = 0
+    i = j = 0
     while j < len(total_found_lines):
         assert i <= j, (i, j)
         a = total_found_lines[i]
         b = total_found_lines[j]
         time_delta = b[0] - a[0]
 
-        if time_delta.days < 1:
+        if time_delta.days >= 1:
+            # decrease time interval
+            i += 1
+        else:
             delta = b[1] - a[1]
             total_last_24.append((b[0], delta))
             # increase time interval
             j += 1
-        else:
-            # decrease time interval
-            i += 1
 
     rels_last_24 = total_last_24[-1]
     total_last_24 = sub_sample_with_endpoints(total_last_24, 3000)

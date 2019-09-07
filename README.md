@@ -86,5 +86,11 @@ Congrats! the [factoring-ui](screenshots/main-page.png) should be running on
   * [ ] Paramenters (minus paths)
   * [ ] Failed / timedout tasks
   * [ ] Polyselect
-* [ ] Remove numpy.percentile
-* [ ] Support config from file in parameter format
+* P1
+  * [ ] Pass an arg for name (e.g. 13_945, 2330L.c207) to app.py
+  * [ ] Gracefully handle case where log is empty.
+* P2
+  * [ ] Read relation goal from sql.
+  * [ ] Support config from file in parameter format
+  * [ ] Verify all logs start with same dateformat (or pass as arg)
+  * [ ] Remove numpy.percentile

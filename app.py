@@ -15,6 +15,7 @@ app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 
+# NOTE: status file is small (XXX kb) but avoid loading it on each request.
 @cache.cached(timeout=5 * 60)
 def get_data(factor):
     status_path = os.path.join(app.root_path, factor)
