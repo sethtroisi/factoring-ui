@@ -33,11 +33,11 @@ from operator import itemgetter
 
 import numpy as np
 
-RELATIONS_PTN = re.compile(r"Found ([0-9]*) relations in.*/([0-9_Lc.]*\.[0-9]{5,12}-[0-9]{5,12})")
+RELATIONS_PTN = re.compile(r"Found ([0-9]*) relations in.*/([0-9_Lc.+]*\.[0-9]{5,12}-[0-9]{5,12})")
 STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
 # Use 2000-2099 to validate this starts with a date
-TOTAL_RELATIONS_PTN = re.compile('(20[1-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)')
+TOTAL_RELATIONS_PTN = re.compile('(20[12][0-9]-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9:,]*) .* total is now ([0-9]*)')
 
 
 def get_args():
