@@ -87,8 +87,9 @@ Congrats! the [factoring-ui](screenshots/main-page.png) should be running on
   * [ ] Failed / timedout tasks
   * [ ] Polyselect
 * P1
-  * [ ] Pass an arg for name (e.g. 13_945, 2330L.c207) to app.py
+  * [ ] header bar of all numbers know to app.py
   * [ ] Gracefully handle case where log is empty.
+  * [x] Pass an arg for name (e.g. 13_945, 2330L.c207) to app.py
 * P2
   * [ ] Read relation goal from sql.
   * [ ] Support config from file in parameter format
