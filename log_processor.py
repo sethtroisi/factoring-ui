@@ -33,7 +33,7 @@ from operator import itemgetter
 
 import numpy as np
 
-RELATIONS_PTN = re.compile(r"Found ([0-9]*) relations in.*/([0-9_Lc.+]*\.[0-9]{5,12}-[0-9]{5,12})")
+RELATIONS_PTN = re.compile(r"Found ([0-9]*) relations in.*/([0-9_Lc.+a-zA-Z]*\.[0-9]{5,12}-[0-9]{5,12})")
 STATS_TOTAL_PTN = re.compile(r"'stats_total_cpu_time': '([0-9.]*)',")
 
 # Use 2000-2099 to validate this starts with a date
