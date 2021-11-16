@@ -29,6 +29,7 @@ def get_data(factor):
 def log_date_str_to_datetime(log_date_str):
     return datetime.strptime(log_date_str, "%Y-%m-%d %H:%M:%S,%f")
 
+
 # TODO: Accept a default number as an arg.
 @app.route("/")
 @app.route("/<number>/")
@@ -94,6 +95,7 @@ def index(number="2330L.c207"):
         number=number,
         goal=relation_goal,
         banner=banner,
+        anonymous=False,
 
         relations_done=relations_done,
         workunits_done=workunits_done,

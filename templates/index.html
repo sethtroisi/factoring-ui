@@ -61,10 +61,11 @@ tbody.sub-stats tr th:first-child {
           {# TODO add some :after content: \f077 .collapsed:after content: \f078 #}
           <a data-toggle="collapse" href="#{{toggle_name}}" class="collapsed"
              aria-expanded="false" aria-controls="{{toggle_name}}">
+            {# Anonymous handled in caller for this case #}
             {{ name }}
           </a>
         {% else %}
-          {{ name }}
+          {{ name if (name.isdigit() or not anonymous) else "" }}
         {% endif %}
       </th>
       <td>
@@ -110,10 +111,13 @@ tbody.sub-stats tr th:first-child {
     </tr>
   </thead>
     {% for name, row_stats in stats %}
-      {%- set toggle_name = name|replace('<X>', '') -%}
+      {%- set display_name = name if not anonymous else loop.index|string -%}
+      {%- set toggle_name = display_name|replace('<X>', '') -%}
 
       <tbody>
-      {{ stats_row(name, toggle_name + "-toggle", row_stats, loop.first, sub_stats|length ) }}
+      {{ stats_row(
+             display_name, toggle_name + "-toggle",
+             row_stats, loop.first, sub_stats|length ) }}
       </tbody>
 
       {# Render client stats if this is host #}
