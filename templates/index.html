@@ -54,7 +54,7 @@ tbody.sub-stats tr th:first-child {
 
 </head>
 
-{% macro stats_row(name, toggle_name, stats, is_first, is_link) %}
+{% macro stats_row(name, toggle_name, badges, stats, is_first, is_link) %}
     <tr>
       <th scope="row" class="name-row">
         {% if is_link and not is_first %}
@@ -69,9 +69,9 @@ tbody.sub-stats tr th:first-child {
         {% endif %}
       </th>
       <td>
-        {% if name in client_badges %}
+        {% if badges %}
           <span class="badge-row">
-            {% for b, num, desc in client_badges[name] -%}
+            {% for b, num, desc in badges -%}
               <span class="badge {{ badge_names[b] }}" data-toggle="tooltip" title="{{desc}}">
                 {{b}}
                 {%- if num -%}
@@ -116,7 +116,7 @@ tbody.sub-stats tr th:first-child {
 
       <tbody>
       {{ stats_row(
-             display_name, toggle_name + "-toggle",
+             display_name, toggle_name + "-toggle", client_badges[name],
              row_stats, loop.first, sub_stats|length ) }}
       </tbody>
 
@@ -125,7 +125,7 @@ tbody.sub-stats tr th:first-child {
         <tbody class="collapse sub-stats" id="{{toggle_name}}-toggle">
         {% for host_name, host_stats in sub_stats %}
           {% if client_hosts[host_name] == name %}
-            {{ stats_row(host_name, "", host_stats, false, false) }}
+            {{ stats_row(host_name, "", client_badges[host_name], host_stats, false, false) }}
           {% endif %}
         {% endfor %}
         </tbody>
