@@ -29,6 +29,7 @@ import re
 import time
 
 from collections import Counter, defaultdict
+from itertools import accumulate
 from operator import itemgetter
 
 import numpy as np
@@ -183,6 +184,10 @@ def get_client_work(sql_path, get_host_name):
 
 
 def get_stat_lines(lines):
+    """
+    tuple of (time, wu, relations, total_cpu_seconds)
+    example: ('2019-05-20 14:54:00,344', '2330L.c207.8002000-8003000', 12166, 9105.97)
+    """
     stat_lines = []
     for i, line in enumerate(lines):
         match = RELATIONS_PTN.search(line)
@@ -236,7 +241,7 @@ def sub_sample_with_endpoints(items, max_count):
 
 
 def get_stats(wuid, bad_wuid, stat_lines, one_day_ago, client_hosts):
-    # wu, relations, cpu_s, last_log, rels_last_24
+    """ [wu, relations, cpu_s, last_log, rels_last_24] """
     client_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
     host_stats = defaultdict(lambda: [0, 0, 0.0, None, 0])
 
@@ -368,7 +373,7 @@ def relations_last_24hr(log_lines, last_log_date):
     return rels_last_24, total_last_24
 
 
-def generate_charts(args, eta_lines, total_last_24):
+def generate_charts(args, eta_lines, total_last_24, stat_lines):
     """
     Generate and save charts:
         Overall progress (out of 100%),
@@ -376,6 +381,7 @@ def generate_charts(args, eta_lines, total_last_24):
     """
     graph_file = args.name + ".progress.png"
     per_day_graph_file = args.name + ".daily_r.png"
+    q_vs_relations_graph_file = args.name + ".relations.png"
 
     from matplotlib.dates import DateFormatter
     import matplotlib
@@ -385,6 +391,9 @@ def generate_charts(args, eta_lines, total_last_24):
 
     import seaborn as sns
     sns.set()
+
+    plt.figure(figsize=(16,9), dpi=64)
+    plt.tight_layout()
 
     log_data = sub_sample_with_endpoints(eta_lines, 2000)
     log_raw_dates = [" ".join(line.split()[1:3]) for line in log_data]
@@ -415,6 +424,28 @@ def generate_charts(args, eta_lines, total_last_24):
 
     plt.savefig(per_day_graph_file)
     print("Saved as ", per_day_graph_file)
+
+    def running_mean(x, N):
+        cum = list(accumulate(x))
+        return [(cum[i+N] - cum[i]) / N for i in range(len(x)-N)]
+
+    # Starting point
+    tmp = [(int(re.match(".*\.([0-9]+)-[0-9]+$", line[1]).group(1)), line[2]) for line in stat_lines]
+    tmp.sort()
+    q_start, relations = zip(*tmp)
+    N = 40
+    avg = running_mean(relations, N)
+
+    ax.clear()
+
+    plt.scatter(q_start, relations, s=1)
+    plt.plot(q_start[N:], avg, linewidth=1, color="red")
+
+    plt.xlabel("Q")
+    plt.ylabel("Relations per workunit")
+
+    plt.savefig(q_vs_relations_graph_file)
+    print("Saved as ", q_vs_relations_graph_file)
 
 
 ##### MAIN #####
@@ -504,7 +535,7 @@ def main():
 
     ##### Generate charts #####
 
-    generate_charts(args, eta_lines, total_last_24)
+    generate_charts(args, eta_lines, total_last_24, stat_lines)
 
 
 if __name__ == "__main__":
