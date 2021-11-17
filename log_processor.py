@@ -47,7 +47,7 @@ def get_args():
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
-    # TODO find a better way to pass config settings
+    # TODO find a better way to share config settings between this and app.py (e.g. write to LAST_NUMBER)
 
     # Used to determine <name>.status and <name>.progress.png filenames.
     parser.add_argument('-n', '--name', required=True,
@@ -84,7 +84,7 @@ def get_args():
 
 
 def parse_log_time(log_time):
-    # TODO allow this format to be passed in args.
+    # TODO passed in format via an arg.
     return datetime.datetime.strptime(log_time, "%Y-%m-%d %H:%M:%S,%f")
 
 
@@ -321,7 +321,7 @@ def set_badges(stat_lines, joined_stats, client_records):
             record[0].append((
                 "weeks",
                 int(time_delta.days) // 7,
-                "{:.2f} Weeks of workunits".format(weeks),
+                "{:.2f} Weeks of submitting work".format(weeks),
             ))
 
         total_cpu_seconds = joined_stats[name][2]

@@ -42,11 +42,17 @@ def index(number="2330L.c207"):
     host_stats, client_stats, client_records, client_hosts = host_client_data
     mtime, relation_goal, banner = other_stats
 
+    # Convert string timestamps to datetime
+    for s in host_stats.values():
+        s[3] = log_date_str_to_datetime(s[3])
+    for s in client_stats.values():
+        s[3] = log_date_str_to_datetime(s[3])
+
     newest_eta = eta_logs_sample[-1].split("as ok")[-1].strip(' ()\n')
     last_update = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     updated_delta_s = time.time() - mtime
     last_wu = max(host_stat[3] for host_stat in host_stats.values())
-    last_wu_time = datetime.timestamp(log_date_str_to_datetime(last_wu))
+    last_wu_time = datetime.timestamp(last_wu)
     wu_delta_s = time.time() - last_wu_time
 
     workunits_done = sum(s[0] for s in host_stats.values())
@@ -60,14 +66,14 @@ def index(number="2330L.c207"):
         client_stats.items(),
         key=lambda p: (p[0].split(".")[0], p[1][3]),
         reverse=True)
+
     # Filter clients with only one WU.
     client_stats = [(c, v) for c, v in client_stats if v[0] > 1]
 
     # Adjusted if workunits take longer than this on average.
     kinda_recent = datetime.now() - timedelta(hours=4)
     def active_nodes(named_stats):
-        return sum(1 for name, stats in named_stats if
-                   log_date_str_to_datetime(stats[3]) > kinda_recent)
+        return sum(1 for name, stats in named_stats if stats[3] > kinda_recent)
 
     active_hosts = active_nodes(host_stats)
     active_clients = active_nodes(client_stats)

@@ -78,21 +78,24 @@ tbody.sub-stats tr th:first-child {
                   &nbsp;<span class="badge badge-light">{{num}}</span>
                 {%- endif -%}
               </span>
+              {%- if not loop.islast -%}
+              &nbsp;
+              {%- endif -%}
             {%- endfor %}
-          <span>
+          </span>
         {% endif %}
       </td>
       <td>{{ stats[0] }}</td>
       {% if is_first %}
         <td>{{ "{:,}".format(stats[1]) }} ({{ "{:.2f}".format(100 * stats[1] / goal) }}%)</td>
-        <td>{{ (stats[2] / 3600 / 24 / 365)|round(3) }} years</td>
+        <td>{{ (stats[2] / 3600 / 24 / 365)|round(2) }} years</td>
       {% else %}
         <td>{{ "{:,}".format(stats[1]) }} ({{ (100 * stats[1] / relations_done) |round(1) }}% total)</td>
         <td>{{ (stats[2] / 3600 / 24)|round(1) }}</td>
       {% endif %}
       <td>{{ (stats[1] / stats[2])|round(3) }}</td>
       <td>{{ "{:,}".format(stats[4]) }}</td>
-      <td>{{ stats[3] }}</td>
+      <td>{{ stats[3].strftime('%Y-%m-%d %H:%M') }}</td>
     </tr>
 {% endmacro %}
 
