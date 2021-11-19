@@ -18,6 +18,10 @@
   max-width: 92%;
 }
 
+#day-stats {
+  margin: auto;
+}
+
 @media (min-width: 1400px) {
   #main-col {
     max-width: 80%;
@@ -171,8 +175,9 @@ tbody.sub-stats tr th:first-child {
         </tbody>
       </table>
       <ul class="nav nav-tabs">
-        <li class="nav-item"><a href="#hosts" class="nav-link active" data-toggle="tab">Host Stats</a></li>
+        <li class="nav-item"><a href="#hosts"   class="nav-link active" data-toggle="tab">Host Stats</a></li>
         <li class="nav-item"><a href="#clients" class="nav-link" data-toggle="tab">Individual Client Stats</a></li>
+        <li class="nav-item"><a href="#p-stats" class="nav-link" data-toggle="tab">Project Stats</a></li>
         <li class="nav-item"><a href="#log"     class="nav-link" data-toggle="tab">Logs</a></li>
         <li class="nav-item"><a href="#charts"  class="nav-link" data-toggle="tab">Charts</a></li>
       </ul>
@@ -185,6 +190,37 @@ tbody.sub-stats tr th:first-child {
         <div class="tab-pane" id="clients">
           <div>These clients are joined into "Hosts" on the main tab</div>
           {{ client_stats_table( client_stats, "Client", {}) }}
+        </div>
+
+        <div class="tab-pane" id="p-stats">
+          <div class="text-center">
+            <h3>Project Stats</h3>
+            <div>Local time: <strong>{{ now.strftime('%Y-%m-%d %H:%M') }}</strong></div>
+            <br>
+        {% if relations_done %}
+            <div>Max Relations from a WU: {{ max_rel_wu[0] }} from {{ max_rel_wu[1] }}</div>
+            <div>Min Relations from a WU: {{ min_rel_wu[0] }} from {{ min_rel_wu[1] }} </div>
+            <div>Avg Relations from a WU: <strong>{{ avg_rel_wu }}</strong></div>
+            <br>
+            <table id="day-stats" class="table table-sm table-borderless w-50">
+              <thead class="thead-light">
+                <tr>
+                  <th scope="col">Day</th>
+                  <th scope="col">Workunits</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for day, count in wus_per_day %}
+                <tr>
+                  <td>{{ day }}</td>
+                  <td>{{ count }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+        {% endif %}
+
+          </div>
         </div>
 
         <div class="tab-pane" id="log">

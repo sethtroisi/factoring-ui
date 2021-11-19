@@ -38,7 +38,8 @@ def index(number="2330L.c207"):
     if not data:
         return 'Not found', 404
 
-    (host_client_data, other_stats, eta_logs_sample, rels_last_24) = data
+    (host_client_data, other_stats, *misc) = data
+    eta_logs_sample, rels_last_24, day_workunits = misc
     host_stats, client_stats, client_records, client_hosts = host_client_data
     mtime, relation_goal, banner = other_stats
 
@@ -59,6 +60,10 @@ def index(number="2330L.c207"):
     relations_done = sum(s[1] for s in host_stats.values())
     all_cpus = sum(s[2] for s in host_stats.values())
     newest_wu = max(s[3] for s in host_stats.values())
+
+    min_rel_wu = min(r[3] for r in client_records.values())
+    max_rel_wu = max(r[4] for r in client_records.values())
+    avg_rel_wu = int(round(relations_done / workunits_done, 0))
 
     total_line = ("total", (workunits_done, relations_done, all_cpus, newest_wu, rels_last_24))
     host_stats = [total_line] + sorted(host_stats.items(), key=lambda p: -p[1][1])
@@ -123,6 +128,12 @@ def index(number="2330L.c207"):
         updated_delta_s=updated_delta_s,
         last_wu=last_wu,
         wu_delta_s=wu_delta_s,
+
+        now=datetime.now(),
+        max_rel_wu=max_rel_wu,
+        min_rel_wu=min_rel_wu,
+        avg_rel_wu=avg_rel_wu,
+        wus_per_day=sorted(day_workunits.items(), reverse=True),
     )
 
 

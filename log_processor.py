@@ -97,8 +97,9 @@ def parse_host_name(args, client):
     if not client:
         return "<EMPTY>"
 
-    client = re.sub(r'\.[0-9a-f]{7,8}$', '', client)
+    client = re.sub(r'\.[0-9a-f]{6,8}$', '', client)
     client = re.sub(r'\.[0-9]+$', '<X>', client)
+    client = re.sub(r'[.+][0-9]+$', '<X>', client)
 
     for pairs in args.client_substitutions:
         # NOTE: please don't have clients with : in their names.
@@ -474,6 +475,14 @@ def main():
 
     one_day_ago = last_log_date - datetime.timedelta(days=1)
 
+    ##### WorkUnits per day #####
+
+    day_workunits = Counter()
+    for log_time, *_ in stat_lines:
+        day_workunits[log_time.split()[0]] += 1
+
+    day_workunits = dict(day_workunits)
+
     ##### Host/Client stats (and badge variables) #####
 
     client_stats, host_stats, client_records = get_stats(
@@ -530,7 +539,7 @@ def main():
         json.dump([
             [host_stats, client_stats, client_records, client_hosts],
             [time.time(), args.goal, args.banner],
-            eta_logs_sample, rels_last_24[1],
+            eta_logs_sample, rels_last_24[1], day_workunits,
         ], status_file)
 
     ##### Generate charts #####
