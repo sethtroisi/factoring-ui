@@ -14,6 +14,14 @@ print('Setting up CADO Factor')
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
+# Needed at top level to we can configure route("/")
+current_path = os.path.join(app.root_path, "CURRENT_NUMBER")
+if os.path.exists(current_path):
+    with open(current_path) as f:
+        CURRENT_NUMBER = f.read().strip()
+        print(f"CURRENT_NUMBER: {CURRENT_NUMBER!r}")
+else:
+    CURRENT_NUMBER="???"
 
 # NOTE: status file is small (XXX kb) but avoid loading it on each request.
 @cache.cached(timeout=5 * 60)
@@ -30,13 +38,12 @@ def log_date_str_to_datetime(log_date_str):
     return datetime.strptime(log_date_str, "%Y-%m-%d %H:%M:%S,%f")
 
 
-# TODO: Accept a default number as an arg.
 @app.route("/")
 @app.route("/<number>/")
-def index(number="2330L.c207"):
+def index(number=CURRENT_NUMBER):
     data = get_data(number + ".status")
     if not data:
-        return 'Not found', 404
+        return f"{number!r} Not found", 404
 
     (host_client_data, other_stats, *misc) = data
     eta_logs_sample, rels_last_24, day_workunits = misc

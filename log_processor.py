@@ -47,8 +47,6 @@ def get_args():
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
-    # TODO find a better way to share config settings between this and app.py (e.g. write to LAST_NUMBER)
-
     # Used to determine <name>.status and <name>.progress.png filenames.
     parser.add_argument('-n', '--name', required=True,
         help="Name of this factoring effort (e.g. 2330L or RSA120)")
@@ -541,6 +539,11 @@ def main():
             [time.time(), args.goal, args.banner],
             eta_logs_sample, rels_last_24[1], day_workunits,
         ], status_file)
+
+    ##### Write CURRENT_NUMBER ####
+
+    with open("CURRENT_NUMBER", "w") as f:
+        f.write(args.name)
 
     ##### Generate charts #####
 
