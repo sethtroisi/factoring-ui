@@ -152,8 +152,7 @@ def favicon():
 @app.route('/progress/<name>/<graph>')
 def factor_progress(name, graph):
     return send_from_directory(
-        app.root_path, name + "." + graph + ".png",
-        cache_timeout=120)
+        app.root_path, name + "." + graph + ".png")
 
 
 if __name__ == "__main__":
